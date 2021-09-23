@@ -1,6 +1,7 @@
 import java.io.*;
 import java.lang.Character;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 public class LexicalAnalysis {
     private InputStream in = new FileInputStream("testfile.txt");
@@ -11,15 +12,24 @@ public class LexicalAnalysis {
     private String lexicalAnalysisAns = "";
     private String curStr = "";
     private int curNum = 0;
+    private int lineNum = 1;
+    private ArrayList<Word> words = new ArrayList<>();
 
     public LexicalAnalysis() throws IOException {
         getInput();
         while (true) {
             String ret = getsym();
-            if (ret.equals("IntConst")) System.out.println(ret + " " + curNum);
-            else System.out.println(ret + " " + curStr);
+            if (ret.equals("INTCON")) {
+                words.add(new Word(ret, String.valueOf(curNum), lineNum));
+                //System.out.println(ret + " " + curNum);
+            } else {
+                words.add(new Word(ret, curStr, lineNum));
+                //System.out.println(ret + " " + curStr);
+            }
             if (ret.equals("EOF")) break;
         }
+        //System.out.println(lineNum);
+        //System.out.println(words);
         outputLeAns();
     }
 
@@ -27,7 +37,12 @@ public class LexicalAnalysis {
     public String getsym() {
         curStr = "";
         curNum = 0;
-        while (pos < sz && isWhite()) pos++;
+        while (pos < sz && isWhite()) {
+            if (sourceCode.charAt(pos) == '\n') {
+                lineNum++;
+            }
+            pos++;
+        }
         if (pos >= sz) return "EOF";
         String symAns;
         if (isLetter()) {
@@ -42,11 +57,11 @@ public class LexicalAnalysis {
                 curNum = curNum * 10 + sourceCode.charAt(pos) - '0';
                 pos++;
             }
-            symAns = "IntConst";
+            symAns = "INTCON";
             lexicalAnalysisAns += symAns + " " + curNum + "\n";
         } else {
             symAns = judgeSpecWord();
-            if (!symAns.equals("annotation")) {
+            if (!symAns.equals("annotation") && !symAns.equals("EOF")) {
                 lexicalAnalysisAns += symAns + " " + curStr + "\n";
             }
         }
@@ -58,7 +73,7 @@ public class LexicalAnalysis {
     }
 
     public boolean isLetter() {
-        return Character.isLetter(sourceCode.charAt(pos));
+        return Character.isLetter(sourceCode.charAt(pos)) || sourceCode.charAt(pos) == '_';
     }
 
     public boolean isDigit() {
@@ -81,13 +96,11 @@ public class LexicalAnalysis {
         } else if (c == '|') {
             if (postmp + 1 < sz && sourceCode.charAt(postmp + 1) == '|') {
                 postmp += 2;
-                pos = postmp;
                 ans = "OR";
             }
         } else if (c == '&') {
             if (postmp + 1 < sz && sourceCode.charAt(postmp + 1) == '&') {
                 postmp += 2;
-                pos = postmp;
                 ans = "AND";
             }
         } else if (c == '+') {
@@ -104,11 +117,16 @@ public class LexicalAnalysis {
                 postmp += 2;
                 while (postmp < sz && sourceCode.charAt(postmp) != '\n') postmp++;
                 postmp++;
+                lineNum++;
                 pos = postmp;
                 ans = "annotation";
                 return ans;
             } else if (postmp + 1 < sz && sourceCode.charAt(postmp + 1) == '*') {
-                while (postmp < sz && sourceCode.charAt(postmp) != '*') postmp++;
+                postmp += 2;
+                while (postmp < sz && sourceCode.charAt(postmp) != '*') {
+                    if (sourceCode.charAt(postmp) == '\n') lineNum++;
+                    postmp++;
+                }
                 postmp += 2;
                 pos = postmp;
                 ans = "annotation";
@@ -179,6 +197,8 @@ public class LexicalAnalysis {
             //System.out.println("end " + postmp);
             postmp++;
             ans = "STRCON";
+        } else {
+            return "EOF";
         }
         curStr = sourceCode.substring(pos, postmp);
         pos = postmp;
@@ -231,6 +251,7 @@ public class LexicalAnalysis {
 
     public void outputLeAns() throws IOException {
         OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
+        lexicalAnalysisAns = lexicalAnalysisAns.trim();
         writer.append(lexicalAnalysisAns);
         writer.close();
     }

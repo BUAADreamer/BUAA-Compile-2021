@@ -1,6 +1,6 @@
 import java.io.*;
 
-public class Complier {
+public class Compiler {
     public static void main(String[] argv) throws IOException {
         LexicalAnalysis lexicalAnalysis = new LexicalAnalysis();
     }
