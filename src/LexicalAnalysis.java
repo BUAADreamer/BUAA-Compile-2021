@@ -3,7 +3,7 @@ import java.lang.Character;
 import java.nio.charset.StandardCharsets;
 
 public class LexicalAnalysis {
-    private InputStream in = new FileInputStream("testfile1.txt");
+    private InputStream in = new FileInputStream("testfile.txt");
     private OutputStream out = new FileOutputStream("output.txt");
     private String sourceCode;
     private int pos = 0; //read pointer
