@@ -1,3 +1,5 @@
+package frontend;
+
 public class Word {
     private String typeCode;
     private String content;
@@ -19,6 +21,10 @@ public class Word {
 
     public int getLine() {
         return line;
+    }
+
+    public String getOutPut() {
+        return typeCode + " " + content + "\n";
     }
 
     @Override

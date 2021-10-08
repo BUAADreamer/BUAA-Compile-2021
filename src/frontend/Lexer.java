@@ -1,39 +1,37 @@
-import java.io.*;
-import java.lang.Character;
-import java.nio.charset.StandardCharsets;
+package frontend;
+
 import java.util.ArrayList;
 
-public class LexicalAnalysis {
-    private InputStream in = new FileInputStream("testfile.txt");
-    private OutputStream out = new FileOutputStream("output.txt");
+public class Lexer {
     private String sourceCode;
     private int pos = 0; //read pointer
     private int sz; //length of source code
-    private String lexicalAnalysisAns = "";
+    private String lexerAns = "";
     private String curStr = "";
     private int curNum = 0;
     private int lineNum = 1;
     private ArrayList<Word> words = new ArrayList<>();
+    private boolean debug = false;
 
-    public LexicalAnalysis() throws IOException {
-        getInput();
+    public Lexer(String sourceCode) {
+        this.sourceCode = sourceCode;
+        sz = sourceCode.length();
         while (true) {
             String ret = getsym();
             if (ret.equals("INTCON")) {
                 words.add(new Word(ret, String.valueOf(curNum), lineNum));
-                //System.out.println(ret + " " + curNum);
-            } else {
+            } else if (!ret.equals("annotation") && !ret.equals("EOF")) {
+                //忽略注释和结尾
                 words.add(new Word(ret, curStr, lineNum));
-                //System.out.println(ret + " " + curStr);
             }
             if (ret.equals("EOF")) break;
         }
-        //System.out.println(lineNum);
-        //System.out.println(words);
-        outputLeAns();
+        if (debug) {
+            System.out.println(lexerAns);
+        }
     }
 
-    //返回类别码
+    //返回类别码同时增加词法分析调试输出
     public String getsym() {
         curStr = "";
         curNum = 0;
@@ -51,35 +49,39 @@ public class LexicalAnalysis {
                 pos++;
             }
             symAns = judgeWord(curStr);
-            lexicalAnalysisAns += symAns + " " + curStr + "\n";
+            lexerAns += symAns + " " + curStr + "\n";
         } else if (isDigit()) {
             while (pos < sz && isDigit()) {
                 curNum = curNum * 10 + sourceCode.charAt(pos) - '0';
                 pos++;
             }
             symAns = "INTCON";
-            lexicalAnalysisAns += symAns + " " + curNum + "\n";
+            lexerAns += symAns + " " + curNum + "\n";
         } else {
             symAns = judgeSpecWord();
             if (!symAns.equals("annotation") && !symAns.equals("EOF")) {
-                lexicalAnalysisAns += symAns + " " + curStr + "\n";
+                lexerAns += symAns + " " + curStr + "\n";
             }
         }
         return symAns;
     }
 
+    //判断当前字符是否为空白字符
     public boolean isWhite() {
         return Character.isWhitespace(sourceCode.charAt(pos));
     }
 
+    //判断当前字符是否为字母
     public boolean isLetter() {
         return Character.isLetter(sourceCode.charAt(pos)) || sourceCode.charAt(pos) == '_';
     }
 
+    //判断当前字符是否为数字
     public boolean isDigit() {
         return Character.isDigit(sourceCode.charAt(pos));
     }
 
+    //判断各个特殊字符
     public String judgeSpecWord() {
         char c = sourceCode.charAt(pos);
         int postmp = pos;
@@ -123,7 +125,7 @@ public class LexicalAnalysis {
                 return ans;
             } else if (postmp + 1 < sz && sourceCode.charAt(postmp + 1) == '*') {
                 postmp += 2;
-                while (postmp < sz && sourceCode.charAt(postmp) != '*') {
+                while (postmp < sz && !(sourceCode.charAt(postmp) == '*' && sourceCode.charAt(postmp + 1) == '/')) {
                     if (sourceCode.charAt(postmp) == '\n') lineNum++;
                     postmp++;
                 }
@@ -189,12 +191,10 @@ public class LexicalAnalysis {
             postmp++;
             ans = "RBRACE";
         } else if (c == '"') {
-            //System.out.println("begin " + postmp);
             postmp++;
             while (postmp < sz && sourceCode.charAt(postmp) != '"') {
                 postmp++;
             }
-            //System.out.println("end " + postmp);
             postmp++;
             ans = "STRCON";
         } else {
@@ -205,6 +205,7 @@ public class LexicalAnalysis {
         return ans;
     }
 
+    //返回标识符种类
     public String judgeWord(String word) {
         switch (word) {
             case "main":
@@ -236,26 +237,13 @@ public class LexicalAnalysis {
         }
     }
 
-    public void getInput() throws IOException {
-        InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8);
-        StringBuilder sb = new StringBuilder();
-        while (reader.ready()) {
-            sb.append((char) reader.read());
-        }
-//        System.out.println(sb.toString());
-        reader.close();
-        in.close();
-        sourceCode = sb.toString();
-        sz = sourceCode.length();
+    public ArrayList<Word> getWords() {
+        return words;
     }
 
-    public void outputLeAns() throws IOException {
-        OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
-        lexicalAnalysisAns = lexicalAnalysisAns.trim();
-        writer.append(lexicalAnalysisAns);
-        writer.close();
+    public String getLexerAns() {
+        return lexerAns;
     }
-
 }
 
 
