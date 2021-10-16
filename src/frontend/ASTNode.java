@@ -8,11 +8,13 @@ public class ASTNode {
     private boolean isEnd;
     private ArrayList<ASTNode> astChildNodes;
     private ASTNode parentNode;
+    private Word word;
 
-    public ASTNode(String type, String name, boolean isEnd) {
+    public ASTNode(String type, String name, boolean isEnd, Word word) {
         this.type = type;
         this.name = name;
         this.isEnd = isEnd;
+        this.word = word;
         this.astChildNodes = new ArrayList<>();
     }
 

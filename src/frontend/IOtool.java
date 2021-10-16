@@ -26,4 +26,12 @@ public class IOtool {
         writer.append(outAns);
         writer.close();
     }
+
+    public void outputError(String outError) throws IOException {
+        OutputStream out = new FileOutputStream("error.txt");
+        OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
+        outError = outError.trim();
+        writer.append(outError);
+        writer.close();
+    }
 }

@@ -18,7 +18,7 @@ public class Parser {
     }
 
     ASTNode getCompUnit() {
-        ASTNode ast = new ASTNode("CompUnit", "", false);
+        ASTNode ast = addNoEnd("CompUnit");
         if (words.get(pos).getTypeCode().equals("INTTK")) {
             if (words.get(pos + 1).getTypeCode().equals("IDENFR") && words.get(pos + 2).getTypeCode().equals("LPARENT")) {
                 ast.addChildNodes(getFuncs());
@@ -70,7 +70,7 @@ public class Parser {
         ASTNode constdecl = addNoEnd("ConstDecl");
         constdecl.addChildNode(addEnd());
         nextSym();
-        ASTNode btype = new ASTNode("BType", "", false);
+        ASTNode btype = addNoEnd("BType");
         btype.addChildNode(addEnd());
         nextSym();
         constdecl.addChildNode(btype);
@@ -87,8 +87,8 @@ public class Parser {
 
 
     ASTNode getVarDecl() {
-        ASTNode VarDecl = new ASTNode("VarDecl", "", false);
-        ASTNode btype = new ASTNode("BType", "", false);
+        ASTNode VarDecl = addNoEnd("VarDecl");
+        ASTNode btype = addNoEnd("BType");
         btype.addChildNode(addEnd());
         nextSym();
         VarDecl.addChildNode(btype);
@@ -104,8 +104,8 @@ public class Parser {
     }
 
     ASTNode getConstDef() {
-        ASTNode constdef = new ASTNode("ConstDef", "", false);
-        constdef.addChildNode(new ASTNode("Ident", words.get(pos).getContent(), true));
+        ASTNode constdef = addNoEnd("ConstDef");
+        constdef.addChildNode(addEnd());
         nextSym();
         while (pos < sz && !cursymequal("ASSIGN")) {
             constdef.addChildNodes(addEnds(1));
@@ -121,7 +121,7 @@ public class Parser {
 
     ASTNode getVarDef() {
         ASTNode VarDef = addNoEnd("VarDef");
-        VarDef.addChildNode(new ASTNode("Ident", words.get(pos).getContent(), true));
+        VarDef.addChildNode(addEnd());
         nextSym();
         while (pos < sz && !cursymequal("ASSIGN") && !cursymequal("SEMICN") && !cursymequal("COMMA")) {
             VarDef.addChildNodes(addEnds(1));
@@ -161,14 +161,14 @@ public class Parser {
 
 
     ASTNode getConstExp() {
-        ASTNode constexp = new ASTNode("ConstExp", "", false);
+        ASTNode constexp = addNoEnd("ConstExp");
         constexp.addChildNode(getAddExp());
         addOut("ConstExp");
         return constexp;
     }
 
     ASTNode getAddExp() {
-        ASTNode addexp = new ASTNode("AddExp", "", false);
+        ASTNode addexp = addNoEnd("AddExp");
         addexp.addChildNode(getMulExp());
         while (pos < sz && words.get(pos).getTypeCode().equals("PLUS") || words.get(pos).getTypeCode().equals("MINU")) {
             addOut("AddExp");
@@ -181,7 +181,7 @@ public class Parser {
     }
 
     ASTNode getMulExp() {
-        ASTNode mulexp = new ASTNode("MulExp", "", false);
+        ASTNode mulexp = addNoEnd("MulExp");
         mulexp.addChildNode(getUnaryExp());
         while (pos < sz && words.get(pos).getTypeCode().equals("MULT") || words.get(pos).getTypeCode().equals("DIV") || words.get(pos).getTypeCode().equals("MOD")) {
             addOut("MulExp");
@@ -194,14 +194,14 @@ public class Parser {
     }
 
     ASTNode getUnaryExp() {
-        ASTNode unaryexp = new ASTNode("UnaryExp", "", false);
+        ASTNode unaryexp = addNoEnd("UnaryExp");
         if (cursymequal("IDENFR") && words.get(pos + 1).getTypeCode().equals("LPARENT")) {
-            unaryexp.addChildNode(new ASTNode("Ident", words.get(pos).getContent(), true));
+            unaryexp.addChildNode(addEnd());
             nextSym();
-            unaryexp.addChildNode(new ASTNode("(", "(", true));
+            unaryexp.addChildNode(addEnd());
             nextSym();
             if (!cursymequal("RPARENT")) unaryexp.addChildNode(getFuncRParams());
-            unaryexp.addChildNode(new ASTNode(")", ")", true));
+            unaryexp.addChildNode(addEnd());
             nextSym();
         } else if (cursymequal("PLUS") || cursymequal("MINU") || cursymequal("NOT")) {
             ASTNode UnaryOp = addNoEnd("UnaryOp");
@@ -217,12 +217,12 @@ public class Parser {
     }
 
     ASTNode getPrimaryExp() {
-        ASTNode primaryexp = new ASTNode("PrimaryExp", "", false);
+        ASTNode primaryexp = addNoEnd("PrimaryExp");
         if (cursymequal("LPARENT")) {
-            primaryexp.addChildNode(new ASTNode("(", "(", true));
+            primaryexp.addChildNode(addEnd());
             nextSym();
             primaryexp.addChildNode(getExp());
-            primaryexp.addChildNode(new ASTNode(")", ")", true));
+            primaryexp.addChildNode(addEnd());
             nextSym();
         } else if (cursymequal("IDENFR")) {
             primaryexp.addChildNode(getLVal());
@@ -234,21 +234,21 @@ public class Parser {
     }
 
     ASTNode getExp() {
-        ASTNode exp = new ASTNode("Exp", "", false);
+        ASTNode exp = addNoEnd("Exp");
         exp.addChildNode(getAddExp());
         addOut("Exp");
         return exp;
     }
 
     ASTNode getLVal() {
-        ASTNode lval = new ASTNode("LVal", "", false);
-        lval.addChildNode(new ASTNode("Ident", words.get(pos).getContent(), true));
+        ASTNode lval = addNoEnd("LVal");
+        lval.addChildNode(addEnd());
         nextSym();
         while (pos < sz && cursymequal("LBRACK")) {
-            lval.addChildNode(new ASTNode("[", "[", true));
+            lval.addChildNode(addEnd());
             nextSym();
             lval.addChildNode(getExp());
-            lval.addChildNode(new ASTNode("]", "]", true));
+            lval.addChildNode(addEnd());
             nextSym();
         }
         addOut("LVal");
@@ -256,9 +256,9 @@ public class Parser {
     }
 
     ASTNode getNumber() {
-        ASTNode Number = new ASTNode("Number", "", false);
-        ASTNode IntConst = new ASTNode("IntConst", "", false);
-        IntConst.addChildNode(new ASTNode(words.get(pos).getContent(), words.get(pos).getContent(), true));
+        ASTNode Number = addNoEnd("Number");
+        ASTNode IntConst = addNoEnd("IntConst");
+        IntConst.addChildNode(addEnd());
         Number.addChildNode(IntConst);
         nextSym();
         addOut("Number");
@@ -266,10 +266,10 @@ public class Parser {
     }
 
     ASTNode getFuncRParams() {
-        ASTNode FuncRParams = new ASTNode("FuncRParams", "", false);
+        ASTNode FuncRParams = addNoEnd("FuncRParams");
         FuncRParams.addChildNode(getExp());
         while (pos < sz && cursymequal("COMMA")) {
-            FuncRParams.addChildNode(new ASTNode(",", ",", true));
+            FuncRParams.addChildNode(addEnd());
             nextSym();
             FuncRParams.addChildNode(getExp());
         }
@@ -279,7 +279,7 @@ public class Parser {
 
 
     ASTNode getConstInitVal() {
-        ASTNode ConstInitVal = new ASTNode("ConstInitVal", "", false);
+        ASTNode ConstInitVal = addNoEnd("ConstInitVal");
         if (pos < sz && cursymequal("LBRACE")) {
             ConstInitVal.addChildNode(addEnd());
             nextSym();
@@ -300,13 +300,13 @@ public class Parser {
     }
 
     ASTNode getFuncDef() {
-        ASTNode FuncDef = new ASTNode("FuncDef", "", false);
-        ASTNode FuncType = new ASTNode("FuncType", "", false);
+        ASTNode FuncDef = addNoEnd("FuncDef");
+        ASTNode FuncType = addNoEnd("FuncType");
         FuncType.addChildNode(addEnd());
         nextSym();
         addOut("FuncType");
         FuncDef.addChildNode(FuncType);
-        FuncDef.addChildNode(new ASTNode("Ident", words.get(pos).getContent(), true));
+        FuncDef.addChildNode(addNoEnd("Ident"));
         nextSym();
         FuncDef.addChildNode(addEnd());
         nextSym();
@@ -319,7 +319,7 @@ public class Parser {
     }
 
     ASTNode getFuncFParams() {
-        ASTNode FuncFParams = new ASTNode("FuncFParams", "", false);
+        ASTNode FuncFParams = addNoEnd("FuncFParams");
         FuncFParams.addChildNode(getFuncFParam());
         while (pos < sz && cursymequal("COMMA")) {
             FuncFParams.addChildNode(addEnd());
@@ -331,8 +331,8 @@ public class Parser {
     }
 
     ASTNode getFuncFParam() {
-        ASTNode FuncFParam = new ASTNode("FuncFParam", "", false);
-        ASTNode BType = new ASTNode("BType", "", false);
+        ASTNode FuncFParam = addNoEnd("FuncFParam");
+        ASTNode BType = addNoEnd("BType");
         BType.addChildNode(addEnd());
         FuncFParam.addChildNode(BType);
         nextSym();
@@ -356,7 +356,7 @@ public class Parser {
     }
 
     ASTNode getBlock() {
-        ASTNode Block = new ASTNode("Block", "", false);
+        ASTNode Block = addNoEnd("Block");
         Block.addChildNode(addEnd());
         nextSym();
         while (pos < sz && !cursymequal("RBRACE")) {
@@ -543,11 +543,14 @@ public class Parser {
     }
 
     public ASTNode addEnd() {
-        return new ASTNode(words.get(pos).getContent(), words.get(pos).getContent(), true);
+        return new ASTNode(words.get(pos).getContent(), words.get(pos).getContent(), true, words.get(pos));
     }
 
     public ASTNode addNoEnd(String type) {
-        return new ASTNode(type, "", false);
+        if (type.equals("Ident")) {
+            return new ASTNode("Ident", words.get(pos).getContent(), true, words.get(pos));
+        }
+        return new ASTNode(type, "", false, words.get(pos));
     }
 
     public ArrayList<ASTNode> addEnds(int x) {
