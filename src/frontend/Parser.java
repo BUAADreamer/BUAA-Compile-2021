@@ -105,7 +105,7 @@ public class Parser {
 
     ASTNode getConstDef() {
         ASTNode constdef = addNoEnd("ConstDef");
-        constdef.addChildNode(addEnd());
+        constdef.addChildNode(addNoEnd("Ident"));
         nextSym();
         while (pos < sz && !cursymequal("ASSIGN")) {
             constdef.addChildNodes(addEnds(1));
@@ -121,7 +121,7 @@ public class Parser {
 
     ASTNode getVarDef() {
         ASTNode VarDef = addNoEnd("VarDef");
-        VarDef.addChildNode(addEnd());
+        VarDef.addChildNode(addNoEnd("Ident"));
         nextSym();
         while (pos < sz && !cursymequal("ASSIGN") && !cursymequal("SEMICN") && !cursymequal("COMMA")) {
             VarDef.addChildNodes(addEnds(1));
@@ -196,7 +196,7 @@ public class Parser {
     ASTNode getUnaryExp() {
         ASTNode unaryexp = addNoEnd("UnaryExp");
         if (cursymequal("IDENFR") && words.get(pos + 1).getTypeCode().equals("LPARENT")) {
-            unaryexp.addChildNode(addEnd());
+            unaryexp.addChildNode(addNoEnd("Ident"));
             nextSym();
             unaryexp.addChildNode(addEnd());
             nextSym();
@@ -242,7 +242,7 @@ public class Parser {
 
     ASTNode getLVal() {
         ASTNode lval = addNoEnd("LVal");
-        lval.addChildNode(addEnd());
+        lval.addChildNode(addNoEnd("Ident"));
         nextSym();
         while (pos < sz && cursymequal("LBRACK")) {
             lval.addChildNode(addEnd());
