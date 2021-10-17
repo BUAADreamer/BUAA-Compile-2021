@@ -57,9 +57,16 @@ public class SymbolTable {
 
     public ExcNode addSymbol(SymbolTable symbolTable) {
         for (SymbolTable symbolTable1 : symbolTables) {
-            if (symbolTable.equals(symbolTable1)) {
-                return new ExcNode(symbolTable.getLine(), "b", "redecline of " +
-                        symbolTable.getName() + "previous decline in line " + symbolTable1.getLine());
+            if (Objects.equals(name, "global")) {
+                if (symbolTable.getName().equals(symbolTable1.getName())) {
+                    return new ExcNode(symbolTable.getLine(), "b", "redecline of " +
+                            symbolTable.getName() + ",previous decline in line " + symbolTable1.getLine());
+                }
+            } else {
+                if (symbolTable.equals(symbolTable1)) {
+                    return new ExcNode(symbolTable.getLine(), "b", "redecline of " +
+                            symbolTable.getName() + ",previous decline in line " + symbolTable1.getLine());
+                }
             }
         }
         this.symbolTables.add(symbolTable);
@@ -123,5 +130,14 @@ public class SymbolTable {
     @Override
     public int hashCode() {
         return Objects.hash(name, kind);
+    }
+
+    @Override
+    public String toString() {
+        return "SymbolTable{" +
+                "type='" + type + '\'' +
+                ", name='" + name + '\'' +
+                ", kind='" + kind + '\'' +
+                '}';
     }
 }

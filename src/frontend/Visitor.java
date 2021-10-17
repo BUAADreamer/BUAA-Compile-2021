@@ -56,6 +56,20 @@ public class Visitor {
             decl2symbol(node);
         } else if (node.getType().equals("FuncDef")) {
             funcdef2symbol(node);
+        } else if (node.getType().equals("MainFuncDef")) {
+            ASTNode block = node.getAstChildNodes().get(4);
+            if (block.getAstChildNodes().size() == 2) {
+                excNodes.add(new ExcNode(block.getAstChildNodes().get(block.getAstChildNodes().size() - 1).getLine(),
+                        "g", "int main func has no return stmt in line "
+                        + block.getAstChildNodes().get(block.getAstChildNodes().size() - 1).getLine()));
+            } else {
+                ASTNode returnstmt = block.getAstChildNodes().get(block.getAstChildNodes().size() - 2).getAstChildNodes().get(0);
+                if (!returnstmt.getAstChildNodes().get(0).getName().equals("return")) {
+                    excNodes.add(new ExcNode(block.getAstChildNodes().get(block.getAstChildNodes().size() - 1).getLine(),
+                            "g", "int main func has no return stmt in line "
+                            + block.getAstChildNodes().get(block.getAstChildNodes().size() - 1).getLine()));
+                }
+            }
         } else if (node.getType().equals("Block")) {
             String name = "block";
             if (stackWhile.size() > 0) {
@@ -65,7 +79,8 @@ public class Visitor {
             SymbolTable block = new SymbolTable(name, curLevel);
             if (stackFuncParams.size() > 0) {
                 for (SymbolTable symbolTable : stackFuncParams.get(stackFuncParams.size() - 1)) {
-                    block.addSymbol(symbolTable);
+                    ExcNode ans = block.addSymbol(symbolTable);
+                    if (ans != null) excNodes.add(ans);
                 }
                 stackFuncParams.remove(stackFuncParams.size() - 1);
             }
@@ -79,34 +94,54 @@ public class Visitor {
                         + node.getAstChildNodes().get(0).getLine()));
             }
         } else if (node.getType().equals("UnaryExp") && node.getAstChildNodes().get(0).getType().equals("Ident")) {
-            String name = node.getAstChildNodes().get(0).getName();
-            SymbolTable matchSymbol = findFuncInAllTable(name);
-            int line = node.getAstChildNodes().get(0).getLine();
-            if (matchSymbol == null) {
-                excNodes.add(new ExcNode(line,
-                        "c", "use undefined name in UnaryExp " + name + " in line "
-                        + line));
-            } else if (matchSymbol.getKind().equals("func")) {
-                int rparamnum = 0;
-                ArrayList<ASTNode> expLs = new ArrayList<>();
-                for (ASTNode astNode : node.getAstChildNodes().get(2).getAstChildNodes()) {
-                    if (astNode.getType().equals("Exp")) {
-                        expLs.add(astNode);
-                        rparamnum++;
+            if (node.getAstChildNodes().size() > 1 && node.getAstChildNodes().get(1).getType().equals("(")) {
+                String name = node.getAstChildNodes().get(0).getName();
+                SymbolTable matchSymbol = findFuncInAllTable(name);
+                int line = node.getAstChildNodes().get(0).getLine();
+                if (matchSymbol == null) {
+                    excNodes.add(new ExcNode(line,
+                            "c", "use undefined name in UnaryExp " + name + " in line "
+                            + line));
+                } else if (matchSymbol.getKind().equals("func")) {
+                    int rparamnum = 0;
+                    ArrayList<ASTNode> expLs = new ArrayList<>();
+                    for (ASTNode astNode : node.getAstChildNodes().get(2).getAstChildNodes()) {
+                        if (astNode.getType().equals("Exp")) {
+                            expLs.add(astNode);
+                            rparamnum++;
+                        }
+                    }
+                    if (matchSymbol.getParams().size() != rparamnum) {
+                        excNodes.add(new ExcNode(line,
+                                "d", "use unmatched param num in func " + name + " in line "
+                                + line + ",we expect " + matchSymbol.getParams().size() + ",but we got " + rparamnum));
+                    } else {
+                        ArrayList<SymbolTable> params = matchSymbol.getParams();
+                        ArrayList<Integer> ret = judgeParamMatch(params, expLs, rparamnum);
+                        if (!ret.isEmpty()) {
+                            if (ret.get(0) >= 0)
+                                excNodes.add(new ExcNode(line,
+                                        "e", "use unmatched param in func " + name + " in line "
+                                        + line + ",we got dimension " + ret.get(0) + ",but we expected dimension " + ret.get(1)));
+                            else if (ret.get(0) == -1)
+                                excNodes.add(new ExcNode(line,
+                                        "e", "use unmatched param in func " + name + " in line "
+                                        + line + ",we got const,but we expected not const in var " + ret.get(1)));
+                            else
+                                excNodes.add(new ExcNode(line,
+                                        "e", "use unmatched param in func " + name + " in line "
+                                        + line + ",we got void,but we expected int in var"));
+                        }
                     }
                 }
-                if (matchSymbol.getParams().size() != rparamnum) {
+            } else {
+                String name = node.getAstChildNodes().get(0).getName();
+                SymbolTable matchSymbol = findVarInAllTable(name);
+                int line = node.getAstChildNodes().get(0).getLine();
+                if (matchSymbol == null) {
                     excNodes.add(new ExcNode(line,
-                            "d", "use unmatched param num in func " + name + " in line "
-                            + line + ",we expect " + matchSymbol.getParams().size() + ",but we got " + rparamnum));
-                } else {
-                    ArrayList<SymbolTable> params = matchSymbol.getParams();
-                    ArrayList<Integer> ret = judgeParamMatch(params, expLs, rparamnum);
-                    if (!ret.isEmpty()) {
-                        excNodes.add(new ExcNode(line,
-                                "e", "use unmatched param in func " + name + " in line "
-                                + line + ",we got dimension " + ret.get(0) + ",but we expected dimension " + ret.get(1)));
-                    }
+                            "c", "use undefined name in UnaryExp " + name + " in line "
+                            + line));
                 }
             }
         } else if (node.getType().equals("Stmt")
@@ -143,7 +178,14 @@ public class Visitor {
         } else if (node.getType().equals("Stmt") && node.getAstChildNodes().get(0).getType().equals("while")) {
             stackWhile.add(1);
         } else if (node.getName().equals("continue") || node.getName().equals("break")) {
-            if (!beginSymStack.get(curLevel).getName().equals("while")) {
+            boolean flag = false;
+            for (int i = 0; i <= curLevel; i++) {
+                if (beginSymStack.get(i).getName().equals("while")) {
+                    flag = true;
+                    break;
+                }
+            }
+            if (!flag) {
                 excNodes.add(new ExcNode(node.getLine(), "m",
                         String.format("can only use %s in while block,error in line %d", node.getName(), node.getLine())));
             }
@@ -166,7 +208,11 @@ public class Visitor {
             if (addexp.getAstChildNodes().size() == 1) {
                 ASTNode mulexp = addexp.getAstChildNodes().get(0);
                 if (mulexp.getAstChildNodes().size() == 1) {
-                    ASTNode unaryexp = mulexp.getAstChildNodes().get(0);
+                    ASTNode rangeExp = mulexp.getAstChildNodes().get(0);
+                    while (rangeExp.getAstChildNodes().get(0).getType().equals("UnaryOp")) {
+                        rangeExp = rangeExp.getAstChildNodes().get(1);
+                    }
+                    ASTNode unaryexp = rangeExp;
                     if (unaryexp.getAstChildNodes().get(0).getType().equals("PrimaryExp")) {
                         ASTNode primaryexp = unaryexp.getAstChildNodes().get(0);
                         if (primaryexp.getAstChildNodes().get(0).getType().equals("LVal")) {
@@ -177,12 +223,27 @@ public class Visitor {
                                 if (astNode.getType().equals("[")) bracknum++;
                             }
                             if (var != null) {
+                                if (var.isConst()) {
+                                    ret.add(-1);
+                                    ret.add(var.getLine());
+                                    return ret;
+                                }
                                 int paramd = var.getBracknum() - bracknum;
                                 if (paramd != param.getBracknum()) {
-                                    ret.add(paramd, param.getBracknum());
+                                    ret.add(paramd);
+                                    ret.add(param.getBracknum());
                                     return ret;
                                 }
                             }
+                        }
+                    } else if (unaryexp.getAstChildNodes().get(0).getType().equals("Ident")) {
+                        ASTNode ident = unaryexp.getAstChildNodes().get(0);
+                        String name = ident.getName();
+                        SymbolTable func = findFuncInAllTable(name);
+                        if (func != null && func.getType().equals("void")) {
+                            ret.add(-2);
+                            ret.add(-2);
+                            return ret;
                         }
                     }
                 }
@@ -260,12 +321,9 @@ public class Visitor {
                 case "FuncFParams":
                     int line1 = 0;
                     String type1 = "int"; //int void
-
                     boolean isConst = false;
                     int n1 = 0; //int[n1]
-
                     int n2 = 0; //int[n1][n2]
-
                     String kind1 = "var";
                     String name1 = "";
                     int bracknum = 0;
@@ -282,14 +340,11 @@ public class Visitor {
                                     case "[":
                                         bracknum++;
                                         break;
-                                    case "]":
-                                        bracknum = 0;
-                                        break;
                                 }
                             }
                         } else {
-                            bracknum = 0;
                             params.add(new SymbolTable(line1, type1, isConst, n1, n2, curLevel, name1, bracknum, kind1));
+                            bracknum = 0;
                             flag = false;
                         }
                     }
@@ -302,13 +357,25 @@ public class Visitor {
         addSymbol(new SymbolTable(line, type, curLevel, name, kind, params));
         stackFuncParams.add(params);
         ASTNode block = funcdef.getAstChildNodes().get(funcdef.getAstChildNodes().size() - 1);
+        if (block.getAstChildNodes().size() == 2) {
+            if (type.equals("int")) {
+                excNodes.add(new ExcNode(block.getAstChildNodes().get(block.getAstChildNodes().size() - 1).getLine(),
+                        "g", "int func has no return stmt in line "
+                        + block.getAstChildNodes().get(block.getAstChildNodes().size() - 1).getLine()));
+            }
+            return;
+        }
         ASTNode returnstmt = block.getAstChildNodes().get(block.getAstChildNodes().size() - 2).getAstChildNodes().get(0);
         if (type.equals("void")) {
-            if (returnstmt.getAstChildNodes().get(0).getName().equals("return")) {
-                if (!returnstmt.getAstChildNodes().get(1).getName().equals(";")) {
-                    excNodes.add(new ExcNode(returnstmt.getAstChildNodes().get(0).getLine(),
-                            "f", "void func has unmatched return value in line "
-                            + returnstmt.getAstChildNodes().get(0).getLine()));
+            for (ASTNode astNode1 : block.getAstChildNodes()) {
+                if (astNode1.getAstChildNodes().size() == 0) continue;
+                ASTNode astNode = astNode1.getAstChildNodes().get(0);
+                if (astNode.getAstChildNodes().get(0).getName().equals("return")) {
+                    if (!astNode.getAstChildNodes().get(1).getName().equals(";")) {
+                        excNodes.add(new ExcNode(astNode.getAstChildNodes().get(0).getLine(),
+                                "f", "void func has unmatched return value in line "
+                                + astNode.getAstChildNodes().get(0).getLine()));
+                    }
                 }
             }
         } else {
