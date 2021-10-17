@@ -10,6 +10,7 @@ public class Parser {
     private ASTNode ast;
     private ArrayList<String> lines = new ArrayList<>();
     private boolean debug = false;
+    private ArrayList<ExcNode> excNodes = new ArrayList<>();
 
     public Parser(ArrayList<Word> words) {
         this.words = words;
@@ -79,8 +80,8 @@ public class Parser {
             constdecl.addChildNodes(addEnds(1));
             constdecl.addChildNode(getConstDef());
         }
-        constdecl.addChildNode(addEnd());
-        nextSym();
+        if (!cursymequal("SEMICN")) constdecl.addChildNode(addExcEnd("SEMICN ConstDecl"));
+        else constdecl.addChildNodes(addEnds(1));
         addOut("ConstDecl");
         return constdecl;
     }
@@ -97,8 +98,8 @@ public class Parser {
             VarDecl.addChildNodes(addEnds(1));
             VarDecl.addChildNode(getVarDef());
         }
-        VarDecl.addChildNode(addEnd());
-        nextSym();
+        if (!cursymequal("SEMICN")) VarDecl.addChildNode(addExcEnd("SEMICN VarDecl"));
+        else VarDecl.addChildNodes(addEnds(1));
         addOut("VarDecl");
         return VarDecl;
     }
@@ -110,7 +111,8 @@ public class Parser {
         while (pos < sz && !cursymequal("ASSIGN")) {
             constdef.addChildNodes(addEnds(1));
             constdef.addChildNode(getConstExp());
-            constdef.addChildNodes(addEnds(1));
+            if (!cursymequal("RBRACK")) constdef.addChildNode(addExcEnd("RBRACK ConstDef"));
+            else constdef.addChildNodes(addEnds(1));
         }
         constdef.addChildNode(addEnd());
         nextSym();
@@ -126,7 +128,8 @@ public class Parser {
         while (pos < sz && !cursymequal("ASSIGN") && !cursymequal("SEMICN") && !cursymequal("COMMA")) {
             VarDef.addChildNodes(addEnds(1));
             VarDef.addChildNode(getConstExp());
-            VarDef.addChildNodes(addEnds(1));
+            if (!cursymequal("RBRACK")) VarDef.addChildNode(addExcEnd("RBRACK VarDef"));
+            else VarDef.addChildNodes(addEnds(1));
         }
         if (!cursymequal("ASSIGN")) {
             addOut("VarDef");
@@ -201,8 +204,8 @@ public class Parser {
             unaryexp.addChildNode(addEnd());
             nextSym();
             if (!cursymequal("RPARENT")) unaryexp.addChildNode(getFuncRParams());
-            unaryexp.addChildNode(addEnd());
-            nextSym();
+            if (!cursymequal("RPARENT")) unaryexp.addChildNode(addExcEnd("RPARENT UnaryExp"));
+            else unaryexp.addChildNodes(addEnds(1));
         } else if (cursymequal("PLUS") || cursymequal("MINU") || cursymequal("NOT")) {
             ASTNode UnaryOp = addNoEnd("UnaryOp");
             UnaryOp.addChildNodes(addEnds(1));
@@ -248,8 +251,8 @@ public class Parser {
             lval.addChildNode(addEnd());
             nextSym();
             lval.addChildNode(getExp());
-            lval.addChildNode(addEnd());
-            nextSym();
+            if (!cursymequal("RBRACK")) lval.addChildNode(addExcEnd("RBRACK LVal"));
+            else lval.addChildNodes(addEnds(1));
         }
         addOut("LVal");
         return lval;
@@ -311,8 +314,8 @@ public class Parser {
         FuncDef.addChildNode(addEnd());
         nextSym();
         if (!cursymequal("RPARENT")) FuncDef.addChildNode(getFuncFParams());
-        FuncDef.addChildNode(addEnd());
-        nextSym();
+        if (!cursymequal("RPARENT")) FuncDef.addChildNode(addExcEnd("RPARENT FuncDef"));
+        else FuncDef.addChildNodes(addEnds(1));
         FuncDef.addChildNode(getBlock());
         addOut("FuncDef");
         return FuncDef;
@@ -336,19 +339,19 @@ public class Parser {
         BType.addChildNode(addEnd());
         FuncFParam.addChildNode(BType);
         nextSym();
-        FuncFParam.addChildNode(addEnd());
+        FuncFParam.addChildNode(addNoEnd("Ident"));
         nextSym();
         if (cursymequal("LBRACK")) {
-            FuncFParam.addChildNode(BType);
+            FuncFParam.addChildNode(addEnd());
             nextSym();
-            FuncFParam.addChildNode(BType);
-            nextSym();
+            if (!cursymequal("RBRACK")) FuncFParam.addChildNode(addExcEnd("RBRACK FuncFParam"));
+            else FuncFParam.addChildNodes(addEnds(1));
             if (cursymequal("LBRACK")) {
-                FuncFParam.addChildNode(BType);
+                FuncFParam.addChildNode(addEnd());
                 nextSym();
                 FuncFParam.addChildNode(getConstExp());
-                FuncFParam.addChildNode(BType);
-                nextSym();
+                if (!cursymequal("RBRACK")) FuncFParam.addChildNode(addExcEnd("RBRACK FuncFParam"));
+                else FuncFParam.addChildNodes(addEnds(1));
             }
         }
         addOut("FuncFParam");
@@ -386,7 +389,8 @@ public class Parser {
         } else if (cursymequal("IFTK")) {
             Stmt.addChildNodes(addEnds(2));
             Stmt.addChildNode(getCond());
-            Stmt.addChildNodes(addEnds(1));
+            if (!cursymequal("RPARENT")) Stmt.addChildNode(addExcEnd("RPARENT Stmt"));
+            else Stmt.addChildNodes(addEnds(1));
             Stmt.addChildNode(getStmt());
             if (cursymequal("ELSETK")) {
                 Stmt.addChildNode(addEnd());
@@ -396,16 +400,20 @@ public class Parser {
         } else if (cursymequal("WHILETK")) {
             Stmt.addChildNodes(addEnds(2));
             Stmt.addChildNode(getCond());
-            Stmt.addChildNodes(addEnds(1));
+            if (!cursymequal("RPARENT")) Stmt.addChildNode(addExcEnd("RPARENT Stmt"));
+            else Stmt.addChildNodes(addEnds(1));
             Stmt.addChildNode(getStmt());
         } else if (cursymequal("BREAKTK") || cursymequal("CONTINUETK")) {
-            Stmt.addChildNodes(addEnds(2));
+            Stmt.addChildNodes(addEnds(1)); //break and continue
+            if (!cursymequal("SEMICN")) Stmt.addChildNode(addExcEnd("SEMICN Stmt"));
+            else Stmt.addChildNodes(addEnds(1)); //;
         } else if (cursymequal("RETURNTK")) {
             Stmt.addChildNodes(addEnds(1));
             if (!cursymequal("SEMICN")) {
                 Stmt.addChildNode(getExp());
             }
-            Stmt.addChildNodes(addEnds(1));
+            if (!cursymequal("SEMICN")) Stmt.addChildNode(addExcEnd("SEMICN Stmt"));
+            else Stmt.addChildNodes(addEnds(1)); //;
         } else if (cursymequal("PRINTFTK")) {
             Stmt.addChildNodes(addEnds(2));
             Stmt.addChildNode(getFormatString());
@@ -414,7 +422,10 @@ public class Parser {
                 Stmt.addChildNodes(addEnds(1));
                 Stmt.addChildNode(getExp());
             }
-            Stmt.addChildNodes(addEnds(2));
+            if (!cursymequal("RPARENT")) Stmt.addChildNode(addExcEnd("RPARENT Stmt"));
+            else Stmt.addChildNodes(addEnds(1)); //)
+            if (!cursymequal("SEMICN")) Stmt.addChildNode(addExcEnd("SEMICN Stmt"));
+            else Stmt.addChildNodes(addEnds(1)); //;
         } else if (cursymequal("SEMICN")) {
             Stmt.addChildNode(addEnd());
             nextSym();
@@ -423,13 +434,18 @@ public class Parser {
             int preoutsz = lines.size();
             ASTNode lval = getLVal();
             if (cursymequal("ASSIGN")) {
-                Stmt.addChildNodes(addEnds(1));
                 Stmt.addChildNode(lval);
+                Stmt.addChildNodes(addEnds(1));
                 if (cursymequal("GETINTTK")) {
-                    Stmt.addChildNodes(addEnds(4));
+                    Stmt.addChildNodes(addEnds(2));
+                    if (!cursymequal("RPARENT")) Stmt.addChildNode(addExcEnd("RPARENT Stmt"));
+                    else Stmt.addChildNodes(addEnds(1));
+                    if (!cursymequal("SEMICN")) Stmt.addChildNode(addExcEnd("SEMICN Stmt"));
+                    else Stmt.addChildNodes(addEnds(1)); //;
                 } else {
                     Stmt.addChildNode(getExp());
-                    Stmt.addChildNodes(addEnds(1));
+                    if (!cursymequal("SEMICN")) Stmt.addChildNode(addExcEnd("SEMICN Stmt"));
+                    else Stmt.addChildNodes(addEnds(1)); //;
                 }
             } else {
                 int outsz = lines.size();
@@ -438,7 +454,8 @@ public class Parser {
                 }
                 pos = prepos;
                 Stmt.addChildNode(getExp());
-                Stmt.addChildNodes(addEnds(1));
+                if (!cursymequal("SEMICN")) Stmt.addChildNode(addExcEnd("SEMICN Stmt"));
+                else Stmt.addChildNodes(addEnds(1)); //;
             }
         }
         addOut("Stmt");
@@ -501,7 +518,7 @@ public class Parser {
     }
 
     ASTNode getFormatString() {
-        return addEnd();
+        return addNoEnd("FormatString");
     }
 
     ASTNode getMainFuncDef() {
@@ -549,8 +566,20 @@ public class Parser {
     public ASTNode addNoEnd(String type) {
         if (type.equals("Ident")) {
             return new ASTNode("Ident", words.get(pos).getContent(), true, words.get(pos));
+        } else if (type.equals("FormatString")) {
+            ASTNode string = new ASTNode("FormatString", words.get(pos).getContent(), true, words.get(pos));
+            if (string.isexc()) {
+                excNodes.add(string.getExcNode());
+            }
+            return string;
         }
         return new ASTNode(type, "", false, words.get(pos));
+    }
+
+    public ASTNode addExcEnd(String type) {
+        ASTNode excnode = new ASTNode("EXC", type, true, words.get(pos - 1));
+        excNodes.add(excnode.getExcNode());
+        return excnode;
     }
 
     public ArrayList<ASTNode> addEnds(int x) {
@@ -570,5 +599,9 @@ public class Parser {
 
     public ASTNode getAst() {
         return ast;
+    }
+
+    public ArrayList<ExcNode> getExcNodes() {
+        return excNodes;
     }
 }
