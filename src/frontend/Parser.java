@@ -409,7 +409,7 @@ public class Parser {
             else Stmt.addChildNodes(addEnds(1)); //;
         } else if (cursymequal("RETURNTK")) {
             Stmt.addChildNodes(addEnds(1));
-            if (!cursymequal("SEMICN")) {
+            if (cursymequal("INTCON") || cursymequal("PLUS") || cursymequal("MINU") || cursymequal("NOT") || cursymequal("LPARENT") || cursymequal("IDENFR")) {
                 Stmt.addChildNode(getExp());
             }
             if (!cursymequal("SEMICN")) Stmt.addChildNode(addExcEnd("SEMICN Stmt"));

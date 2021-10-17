@@ -8,7 +8,7 @@ public class Frontend {
         Lexer lexer = new Lexer(iOtool.getInput());
         //iOtool.outputAns(lexer.getLexerAns());
         Parser parser = new Parser(lexer.getWords());
-        //iOtool.outputAns(parser.getParserAns());
+        iOtool.outputAns(parser.getParserAns());
         Visitor visitor = new Visitor(parser.getAst(), parser.getExcNodes());
         iOtool.outputError(visitor.getExcOutAns());
     }

@@ -12,6 +12,8 @@ public class ASTNode {
     private Word word;
     private String excCode = "r";
     private String excInfo;
+    private String parseAns;
+    private StringBuilder parseAnsBuilder = new StringBuilder();
 
     public ASTNode(String type, String name, boolean isEnd, Word word) {
         this.type = type;
@@ -89,8 +91,11 @@ public class ASTNode {
 
     @Override
     public String toString() {
+        if (type.equals("BlockItem") || type.equals("Decl") || type.equals("BType")) {
+            return "";
+        }
         if (isEnd) {
-            return name;
+            return type + " " + name;
         } else {
             return type;
         }
@@ -126,5 +131,27 @@ public class ASTNode {
 
     public String getName() {
         return name;
+    }
+
+    public void postOrder(ASTNode node) {
+        if (node == null) {
+            return;
+        }
+        String type = node.getType();
+        for (int i = 0; i < node.getAstChildNodes().size(); i++) {
+            postOrder(node.getAstChildNodes().get(i));
+            if ((type.equals("MulExp") || type.equals("AddExp") ||
+                    type.equals("RelExp") || type.equals("EqExp") ||
+                    type.equals("LAndExp") || type.equals("LOrExp")) && node.getAstChildNodes().size() > 1 && i != node.getAstChildNodes().size() - 1) {
+                parseAnsBuilder.append(String.format("<%s>\n", node.getType()));
+            }
+        }
+        if (!node.toString().equals("")) {
+            parseAnsBuilder.append(node).append("\n");
+        }
+    }
+
+    public String getParseAns() {
+        return parseAnsBuilder.toString();
     }
 }
