@@ -27,6 +27,22 @@ public class IOtool {
         writer.close();
     }
 
+    public void output(String name, String outAns) {
+        String filename = name + ".txt";
+        OutputStream out = null;
+        try {
+            out = new FileOutputStream(filename);
+            OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
+            outAns = outAns.trim();
+            writer.append(outAns);
+            writer.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void outputError(String outError) throws IOException {
         OutputStream out = new FileOutputStream("error.txt");
         OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);

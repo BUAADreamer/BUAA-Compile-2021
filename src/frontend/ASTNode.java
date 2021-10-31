@@ -1,6 +1,7 @@
 package frontend;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class ASTNode {
@@ -28,7 +29,7 @@ public class ASTNode {
         this.astChildNodes.add(node);
     }
 
-    public void addChildNodes(ArrayList<ASTNode> nodes) {
+    public void addChildNodes(List<ASTNode> nodes) {
         this.astChildNodes.addAll(nodes);
     }
 
@@ -149,6 +150,10 @@ public class ASTNode {
         if (!node.toString().equals("")) {
             parseAnsBuilder.append(node).append("\n");
         }
+    }
+
+    public ASTNode getChild(int pos) {
+        return astChildNodes.get(pos);
     }
 
     public String getParseAns() {
