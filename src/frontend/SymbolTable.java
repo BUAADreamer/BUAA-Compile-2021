@@ -30,6 +30,7 @@ public class SymbolTable {
     private Namespace initvalue;
     private int addr;
 
+    //error process part
     //normal symbol decline
     public SymbolTable(int line, String type, boolean isConst, int n1, int n2, int level, String name, int bracknum, String kind) {
         this.line = line;
@@ -64,6 +65,7 @@ public class SymbolTable {
         this.isBlock = true;
     }
 
+    //IR code generate
     //normal symbol decline IR GEN
     public SymbolTable(int line, String type, boolean isConst, int n1, int n2, int level, String name, int bracknum, ArrayList<Namespace> namespaces, Namespace initvalue, String kind, int addr) {
         this.line = line;
@@ -109,6 +111,18 @@ public class SymbolTable {
         this.kind = kind;
         this.isBlock = false;
         this.initvalue = initvalue;
+        this.addr = addr;
+    }
+
+    //IR code func
+    public SymbolTable(int line, String type, int level, String name, String kind, ArrayList<SymbolTable> params, int addr) {
+        this.line = line;
+        this.type = type;
+        this.level = level;
+        this.name = name;
+        this.kind = kind;
+        this.params = params;
+        this.isBlock = false;
         this.addr = addr;
     }
 

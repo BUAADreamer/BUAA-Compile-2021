@@ -20,6 +20,19 @@ public class Namespace {
         return regNum;
     }
 
+    public void setRegNum(int regNum) {
+        this.regNum = regNum;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setType(int type) {
+        if (type == 2) identtype = 0;
+        this.type = type;
+    }
+
     public String getName() {
         return name;
     }
@@ -39,6 +52,7 @@ public class Namespace {
         String ans = "";
         if (type == 0) ans += "%";
         else if (type == 1) ans += "@";
+        else if (type == 3) ans += "#"; //label
         if (identtype == 0) ans += name;
         else ans += regNum;
         return ans;
