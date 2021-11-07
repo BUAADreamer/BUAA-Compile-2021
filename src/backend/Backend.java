@@ -13,7 +13,8 @@ public class Backend {
 
     private ArrayList<IRCode> irCodes;
 
-    public Backend(ArrayList<IRCode> irCodes) throws IOException {
+    public Backend(ArrayList<IRCode> irCodes, int level) throws IOException {
+        if (level <= 0) return;
         this.irCodes = irCodes;
         IOtool iotool = new IOtool();
         IRTranslator irTranslator = new IRTranslator(irCodes);

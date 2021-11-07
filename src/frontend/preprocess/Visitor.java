@@ -1,5 +1,7 @@
 package frontend.preprocess;
 
+import frontend.SymbolTable;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 

@@ -12,23 +12,26 @@ import java.util.ArrayList;
 public class Frontend {
     private ArrayList<IRCode> irCodes;
 
-    public Frontend() throws IOException {
+    public Frontend(int level) throws IOException {
         /**
          * lexer analysis
          */
         IOtool iOtool = new IOtool();
         Lexer lexer = new Lexer(iOtool.getInput());
         iOtool.outputAns(lexer.getLexerAns());
+        if (level <= 1) return;
         /**
          * Parser analysis
          */
         Parser parser = new Parser(lexer.getWords());
         iOtool.outputAns(parser.getParserAns());
+        if (level <= 2) return;
         /**
          * Error process
          */
         Visitor visitor = new Visitor(parser.getAst(), parser.getExcNodes());
         iOtool.outputError(visitor.getExcOutAns());
+        if (level <= 3) return;
         if (!visitor.getExcOutAns().equals("")) {
             System.out.println("Source code has wrong.");
             return;
@@ -41,6 +44,7 @@ public class Frontend {
         IRGenerater irGenerater = new IRGenerater(parser.getAst());
         this.irCodes = irGenerater.getIrcodes();
         iOtool.output("ircode.txt", irGenerater.getIroutput());
+        if (level <= 4) return;
     }
 
     public ArrayList<IRCode> getIrCodes() {
