@@ -2,7 +2,7 @@ package frontend.llvmir;
 
 import java.util.ArrayList;
 
-public class IOIR extends IRCode {
+public class IOIR extends LlvmIRCode {
     Namespace namespace;
     String type; // 0:getint 1:printf
     ArrayList<Namespace> namespaces;

@@ -1,6 +1,6 @@
 package frontend.llvmir;
 
-public class CalcuIR extends IRCode {
+public class CalcuIR extends LlvmIRCode {
 
     //%0 = add %X, %X
 

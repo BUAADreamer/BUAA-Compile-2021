@@ -19,6 +19,18 @@ public class IOtool {
         return sb.toString();
     }
 
+    public String getInput(String file) throws IOException {
+        InputStream in = new FileInputStream(file);
+        InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8);
+        StringBuilder sb = new StringBuilder();
+        while (reader.ready()) {
+            sb.append((char) reader.read());
+        }
+        reader.close();
+        in.close();
+        return sb.toString();
+    }
+
     public void outputAns(String outAns) throws IOException {
         OutputStream out = new FileOutputStream("output.txt");
         OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
@@ -28,7 +40,7 @@ public class IOtool {
     }
 
     public void output(String name, String outAns) {
-        String filename = name + ".txt";
+        String filename = name;
         OutputStream out = null;
         try {
             out = new FileOutputStream(filename);

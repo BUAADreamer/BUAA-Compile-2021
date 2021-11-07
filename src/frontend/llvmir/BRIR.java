@@ -1,6 +1,6 @@
 package frontend.llvmir;
 
-public class BRIR extends IRCode {
+public class BRIR extends LlvmIRCode {
     private Namespace judge;
     private Namespace cond;
     private String type;

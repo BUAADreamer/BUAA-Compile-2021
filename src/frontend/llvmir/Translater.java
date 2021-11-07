@@ -1,13 +1,15 @@
-package frontend;
+package frontend.llvmir;
 
-import com.sun.org.apache.xpath.internal.functions.FuncFalse;
 import frontend.llvmir.*;
+import frontend.preprocess.ASTNode;
+import frontend.preprocess.ExcNode;
+import frontend.preprocess.SymbolTable;
 
 import java.util.ArrayList;
 
 public class Translater {
     private ASTNode ast;
-    private ArrayList<IRCode> irCodes = new ArrayList<>();
+    private ArrayList<LlvmIRCode> irCodes = new ArrayList<>();
     private String IROutput = "";
     private SymbolTable symbolTable = new SymbolTable("global", 0);
     private int regNum = 5;
@@ -531,7 +533,6 @@ public class Translater {
         }
         if (i > 0) {
             if (unaryexp.getAstChildNodes().get(0).getType().equals("Ident")) {
-                //todo func call
                 String name = unaryexp.getAstChildNodes().get(0).getName();
                 SymbolTable func = findFuncInAllTable(name);
                 irCodes.add(new BRIR("j", new Namespace(func.getAddr(), 2)));
@@ -602,7 +603,7 @@ public class Translater {
     }
 
     public void setIROutput() {
-        for (IRCode irCode : irCodes) {
+        for (LlvmIRCode irCode : irCodes) {
             if (irCode instanceof BRIR) {
                 BRIR brir = ((BRIR) irCode);
                 if (brir.getLabel().getType() == 3) {

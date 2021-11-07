@@ -1,6 +1,6 @@
 package frontend.llvmir;
 
-public class LSAddrIR extends IRCode {
+public class LSAddrIR extends LlvmIRCode {
 
     private String type; //0 load 1 store 2 allocate
     Namespace namespace1;

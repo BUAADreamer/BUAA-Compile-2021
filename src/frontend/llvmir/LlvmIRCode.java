@@ -1,6 +1,6 @@
 package frontend.llvmir;
 
-public abstract class IRCode {
+public abstract class LlvmIRCode {
     public abstract String getType();
 
     @Override

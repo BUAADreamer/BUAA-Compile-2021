@@ -1,4 +1,4 @@
-package frontend;
+package frontend.preprocess;
 
 public class Word {
     private String typeCode;

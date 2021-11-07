@@ -1,4 +1,4 @@
-package frontend;
+package frontend.preprocess;
 
 import frontend.llvmir.Namespace;
 
