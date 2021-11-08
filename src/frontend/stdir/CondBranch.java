@@ -17,4 +17,20 @@ public class CondBranch extends IRCode {
     public String toString() {
         return String.format("cmp %s, %s\n%s %s\n", cmpa, cmpb, type, label.getName());
     }
+
+    public String getType() {
+        return type;
+    }
+
+    public Sym getCmpa() {
+        return cmpa;
+    }
+
+    public Sym getCmpb() {
+        return cmpb;
+    }
+
+    public Label getLabel() {
+        return label;
+    }
 }

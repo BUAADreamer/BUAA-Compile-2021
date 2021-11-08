@@ -56,4 +56,36 @@ public class ArrayLoadStore extends IRCode {
         }
         return res.toString();
     }
+
+    public int getType() {
+        return type;
+    }
+
+    public Sym getLsym() {
+        return lsym;
+    }
+
+    public Sym getRsym() {
+        return rsym;
+    }
+
+    public Sym getTmp1() {
+        return tmp1;
+    }
+
+    public Sym getTmp2() {
+        return tmp2;
+    }
+
+    public Sym getIndex1() {
+        return index1;
+    }
+
+    public Sym getIndex2() {
+        return index2;
+    }
+
+    public Var getArray() {
+        return array;
+    }
 }

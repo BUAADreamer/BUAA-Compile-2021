@@ -29,13 +29,16 @@ public class Namespace {
         if (type == 0) {
             return "$" + reg;
         } else if (type == 1) {
-            return String.valueOf(value);
+            return String.format("0x%x", value);
         } else if (type == 2) {
             return label;
         }
         return "";
     }
 
+    /**
+     * @return 0:reg 1:value
+     */
     public int getType() {
         return type;
     }

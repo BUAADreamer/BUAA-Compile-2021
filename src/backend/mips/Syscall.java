@@ -20,6 +20,9 @@ public class Syscall extends MipsCode {
         } else if (type == 2) {
             assign = new Assign(new Namespace(2, 0), 4);
             res.append(assign);
+        } else if (type == 3) {
+            assign = new Assign(new Namespace(2, 0), 10);
+            res.append(assign);
         }
         res.append("syscall\n");
         return res.toString();

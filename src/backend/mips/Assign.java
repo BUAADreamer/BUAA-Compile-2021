@@ -16,8 +16,9 @@ public class Assign extends MipsCode {
         this.sym1 = sym1;
         this.sym2 = sym2;
         this.type = 1;
-        if (sym2.getType() == 1) {
+        if (sym2 != null && sym2.getType() == 1) {
             this.type = 0;
+            this.value = sym2.getValue();
         }
     }
 

@@ -19,14 +19,22 @@ public class FuncCall extends IRCode {
     public String toString() {
         StringBuilder res = new StringBuilder("");
         for (Sym sym : params) {
-            if (sym.getType() == 3) {
-                for (Sym rparam : sym.getParams()) {
-                    res.append("push " + rparam + "\n");
-                }
-            } else res.append("push " + sym + "\n");
+            res.append("push " + sym + "\n");
         }
         res.append("call " + func.getName() + "\n");
-        res.append(lsym + " = RET\n");
+        if (func.getType().equals("int")) res.append(lsym + " = RET\n");
         return res.toString();
+    }
+
+    public Sym getLsym() {
+        return lsym;
+    }
+
+    public Func getFunc() {
+        return func;
+    }
+
+    public ArrayList<Sym> getParams() {
+        return params;
     }
 }
