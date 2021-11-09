@@ -115,7 +115,7 @@ public class IRTranslator {
             }
         } else {
             if (exp.getOp().equals("=")) {
-                if (rname1.getType() == 1) {
+                if (rname1 != null && rname1.getType() == 1) {
                     Namespace reg = getReg();
                     addText(new Assign(reg, rname1));
                     rname1 = reg;
@@ -306,14 +306,14 @@ public class IRTranslator {
             Namespace reg = getReg();
             addText(new Assign(reg, a.getValue()));
             a = reg;
-            freeReg(reg.getReg());
         }
         if (b.getType() == 1) {
             Namespace reg = getReg();
             addText(new Assign(reg, b.getValue()));
             b = reg;
-            freeReg(reg.getReg());
         }
+        freeReg(a.getReg());
+        freeReg(b.getReg());
         Namespace label = new Namespace(condBranch.getLabel().getName());
         addText(new BrJump(a, b, label, type));
     }
@@ -429,14 +429,15 @@ public class IRTranslator {
             Sym rsym = arrayLoadStore.getRsym();
             Namespace addr = lsym2ns(new Sym(array));
             Namespace rreg = rsym2ns(rsym);
-            if (rreg.getType() == 1) {
+            if (rreg != null && rreg.getType() == 1) {
                 int value = rreg.getValue();
                 rreg = getReg();
                 addText(new Assign(rreg, value));
             }
             Namespace indexreg = transIndex2reg(index1);
             addText(new LoadStore(rreg, indexreg, addr, 3));
-            freeReg(rreg.getReg());
+            if (rreg != null)
+                freeReg(rreg.getReg());
         } else if (arrayLoadStore.getType() == 1) {
             Sym index1 = arrayLoadStore.getIndex1();
             Sym index2 = arrayLoadStore.getIndex2();
@@ -544,7 +545,7 @@ public class IRTranslator {
             return;
         }
         if (names[1].equals("func")) {
-            if (names[3].equals("end")) {
+            if (names[names.length - 1].equals("end")) {
                 if (!(funcodes.get(funcodes.size() - 1) instanceof BrJump)) {
                     funcodes.add(new BrJump(new Namespace(31, 0), "jr"));
                 }

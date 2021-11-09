@@ -50,7 +50,7 @@ public class Calculate extends MipsCode {
             } else if (op.equals("*")) {
                 return "mult";
             } else if (op.equals("slti") || op.equals("sltiu")) {
-                return "sltu";
+                return "slt";
             }
         }
         return "";

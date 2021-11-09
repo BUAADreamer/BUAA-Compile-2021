@@ -1,5 +1,7 @@
 package frontend.irgen.symtable;
 
+import java.util.ArrayList;
+
 public class Var extends SymTable {
     int n1;//dim1
     int n2;//dim2
@@ -8,6 +10,9 @@ public class Var extends SymTable {
     String name;
     int level; //0代表是全局变量 其他是局部变量
     int addr;
+    int value;
+    ArrayList<Integer> d1arrayvalue;
+    ArrayList<ArrayList<Integer>> d2arrayvalue;
 
     public Var(int n1, boolean isconst, String name, int level) {
         this.n1 = n1;
@@ -24,6 +29,7 @@ public class Var extends SymTable {
         this.name = name;
         this.type = 2;
         this.level = level;
+        this.d2arrayvalue = new ArrayList<>();
     }
 
     public Var(boolean isconst, String name, int level) {
@@ -31,6 +37,7 @@ public class Var extends SymTable {
         this.name = name;
         this.level = level;
         this.type = 0;
+        this.d1arrayvalue = new ArrayList<>();
     }
 
     @Override

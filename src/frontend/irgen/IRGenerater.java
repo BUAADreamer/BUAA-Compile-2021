@@ -462,16 +462,67 @@ public class IRGenerater {
     private Sym visitMulExp(ASTNode mulexp) {
         if (mulexp.getAstChildNodes().size() > 1) {
             ASTNode rmulexp = new ASTNode("MulExp", "", false, null);
-            rmulexp.addChildNodes(mulexp.getAstChildNodes().subList(2, mulexp.getAstChildNodes().size()));
-            Sym rsym1 = visitUnaryExp(mulexp.getChild(0));
-            Sym rsym2 = visitMulExp(rmulexp);
+            Sym ans = getTempVar();
+            Sym m0 = visitUnaryExp(mulexp.getChild(0));
             String op = mulexp.getAstChildNodes().get(1).getName();
-            if (rsym1 != null && rsym2 != null && rsym1.getType() == rsym2.getType() && rsym1.getType() == 0) {
-                return new Sym(calcu(rsym1.getValue(), rsym2.getValue(), op));
+            Sym m1 = visitUnaryExp(mulexp.getChild(2));
+            if (m0 != null && m1 != null && m0.getType() == m1.getType() && m0.getType() == 0) {
+                addircode(new Exp("=", ans, new Sym(calcu(m0.getValue(), m1.getValue(), op)), null));
+            } else {
+                addircode(new Exp(op, ans, m0, m1));
             }
-            Sym sym = getTempVar();
-            addircode(new Exp(op, sym, rsym1, rsym2));
-            return sym;
+            int pos = 3;
+            while (pos < mulexp.getAstChildNodes().size()) {
+                op = mulexp.getAstChildNodes().get(pos).getName();
+                Sym sym1 = visitUnaryExp(mulexp.getChild(pos + 1));
+                if (ans != null && sym1 != null && ans.getType() == sym1.getType() && ans.getType() == 0) {
+                    ans = new Sym(calcu(ans.getValue(), sym1.getValue(), op));
+                    pos += 2;
+                } else {
+                    Sym tmp = getTempVar();
+                    addircode(new Exp(op, ans, ans, sym1));
+                    pos += 2;
+                }
+            }
+            return ans;
+        } else {
+            return visitUnaryExp(mulexp.getChild(0));
+        }
+    }
+
+    private Sym visitMulExpGlobal(ASTNode mulexp) {
+        if (mulexp.getAstChildNodes().size() > 1) {
+            ASTNode rmulexp = new ASTNode("MulExp", "", false, null);
+            Sym m0 = visitUnaryExp(mulexp.getChild(0));
+            int pos = 1;
+            while (m0.getType() == 0 && pos < mulexp.getAstChildNodes().size()) {
+                String op = mulexp.getAstChildNodes().get(pos).getName();
+                Sym sym1 = visitUnaryExp(mulexp.getChild(pos + 1));
+                if (m0 != null && sym1 != null && sym1.getType() == m0.getType() && m0.getType() == 0) {
+                    m0.setValue(calcu(m0.getValue(), sym1.getValue(), op));
+                    pos += 2;
+                } else {
+                    Sym tmp = getTempVar();
+                    addircode(new Exp(op, tmp, sym1, m0));
+                    m0 = tmp;
+                    pos += 2;
+                    break;
+                }
+            }
+            while (pos < mulexp.getAstChildNodes().size()) {
+                String op = mulexp.getAstChildNodes().get(pos).getName();
+                Sym sym1 = visitUnaryExp(mulexp.getChild(pos + 1));
+                if (m0 != null && sym1 != null && m0.getType() == sym1.getType() && m0.getType() == 0) {
+                    m0 = new Sym(calcu(m0.getValue(), sym1.getValue(), op));
+                    pos += 2;
+                } else {
+                    Sym tmp = getTempVar();
+                    addircode(new Exp(op, tmp, sym1, m0));
+                    m0 = tmp;
+                    pos += 2;
+                }
+            }
+            return m0;
         } else {
             return visitUnaryExp(mulexp.getChild(0));
         }
@@ -517,7 +568,7 @@ public class IRGenerater {
                 Sym rsym = visitUnaryExp(unaryexp);
                 Sym sym = getTempVar();
                 addircode(new Exp("sltiu", sym, rsym, one));
-                addircode(new Exp("-", sym, one, rsym));
+                //addircode(new Exp("-", sym, one, sym));
                 return sym;
             } else {
                 return visitUnaryExp(unaryexp);
