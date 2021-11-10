@@ -237,7 +237,7 @@ public class Visitor {
                                 if (astNode.getType().equals("[")) bracknum++;
                             }
                             if (var != null) {
-                                if (var.isConst() && var.getBracknum() > 0) {
+                                if (var.isConst() && var.getBracknum() > 0 && bracknum == 0) {
                                     ret.add(-1);
                                     ret.add(var.getLine());
                                     return ret;

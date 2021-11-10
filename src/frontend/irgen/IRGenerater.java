@@ -255,6 +255,21 @@ public class IRGenerater {
             Sym ret = getTempVar();
             Sym lsym = visitAddExp(relexp.getAstChildNodes().get(0), false);
             Sym rsym = visitRelExp(rrelexp);
+            //judge lsym and rsym >0xffff
+            if (rsym.getType() == 0) {
+                if (rsym.getValue() > 0xffff) {
+                    Sym tmp = getTempVar();
+                    addircode(new Exp("=", tmp, rsym, null));
+                    rsym = tmp;
+                }
+            }
+            if (lsym.getType() == 0) {
+                if (lsym.getValue() > 0xffff) {
+                    Sym tmp = getTempVar();
+                    addircode(new Exp("=", tmp, lsym, null));
+                    lsym = tmp;
+                }
+            }
             if (op.equals(">") || op.equals("<=")) {
                 addircode(new Exp("slti", ret, rsym, lsym)); //cha = l==r?1:0;
                 if (op.equals("<=")) {

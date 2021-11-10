@@ -336,7 +336,7 @@ public class IRTranslator {
             Namespace reg1 = getReg();
             addText(new LoadStore(reg1, reg0, new Namespace(addr, 1), 0));
             addText(new Calculate(reg1, reg1, index, "+"));
-            return index;
+            return reg1;
         }
         return null;
     }
@@ -426,15 +426,26 @@ public class IRTranslator {
             if (funcstack.size() > 0) {
                 for (Var var : funcstack.get(funcstack.size() - 1).getParams()) {
                     String varname = var.getName();
-                    String paraname = null;
-                    if (params.get(i).getArrayname() != null)
-                        paraname = params.get(i).getArrayname().getName();
-                    if (paraname != null && paraname.equals(varname)) {
-                        ns = rsym2ns2(params.get(i), offset);
-                        flag = true;
-                        break;
+                    if (params.get(i).getType() == 3) {
+                        String paraname = null;
+                        if (params.get(i).getArrayname() != null)
+                            paraname = params.get(i).getArrayname().getName();
+                        if (paraname != null && paraname.equals(varname)) {
+                            ns = rsym2ns2(params.get(i), offset);
+                            flag = true;
+                            break;
+                        }
+                    } else {
+                        String paraname = null;
+                        if (params.get(i).getArrayname() != null)
+                            paraname = params.get(i).getArrayname().getName();
+                        if (paraname != null && paraname.equals(varname)) {
+                            ns = rsym2ns2(params.get(i), offset);
+                            flag = true;
+                            break;
+                        }
                     }
-                    if (params.get(i).getType() == 3) continue;
+                    if (params.get(i).getType() == 3 || params.get(i).getType() == 4) continue;
                     if (params.get(i).getSymbol() == null) break;
                     String name1 = params.get(i).getSymbol().getName();
                     if (varname.equals(name1)) {
