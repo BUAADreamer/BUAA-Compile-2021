@@ -426,11 +426,15 @@ public class IRTranslator {
             if (funcstack.size() > 0) {
                 for (Var var : funcstack.get(funcstack.size() - 1).getParams()) {
                     String varname = var.getName();
-                    if (params.get(i).getArrayname() != null && params.get(i).getArrayname().getName().equals(varname)) {
+                    String paraname = null;
+                    if (params.get(i).getArrayname() != null)
+                        paraname = params.get(i).getArrayname().getName();
+                    if (paraname != null && paraname.equals(varname)) {
                         ns = rsym2ns2(params.get(i), offset);
                         flag = true;
                         break;
                     }
+                    if (params.get(i).getType() == 3) continue;
                     if (params.get(i).getSymbol() == null) break;
                     String name1 = params.get(i).getSymbol().getName();
                     if (varname.equals(name1)) {
