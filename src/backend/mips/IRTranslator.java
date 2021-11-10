@@ -192,6 +192,36 @@ public class IRTranslator {
         }
     }
 
+    private Namespace lsym2ns1(Sym sym) {
+        if (sym == null) return null;
+        if (sym.getType() == 1) {
+            if (sym.toString().charAt(0) == '%' || sym.toString().charAt(0) == '@') {
+                Var var = findVarInAllTable(sym.toString().substring(1));
+                int addr = var.getAddr();
+                if (addr < 0) {
+                    Namespace reg = getReg();
+                    addText(new LoadStore(reg, reg, new Namespace(addr, 1), 0));
+                    return reg;
+                }
+                return new Namespace(addr, 1);
+            } else {
+                Namespace reg = getReg();
+                tmpname2reg.put(sym.toString(), reg);
+                return reg;
+            }
+        } else {
+            Var var = findVarInAllTable(sym.toString().substring(1));
+            if (var == null) return null;
+            int addr = var.getAddr();
+            if (addr < 0) {
+                Namespace reg = getReg();
+                addText(new LoadStore(reg, reg, new Namespace(addr, 1), 0));
+                return reg;
+            }
+            return new Namespace(addr, 1);
+        }
+    }
+
     private Namespace rsym2ns(Sym sym) {
         if (sym == null) return null;
         if (sym.getType() == 0) {
@@ -293,12 +323,19 @@ public class IRTranslator {
             int pos = str.indexOf('[');
             if (pos == -1) pos = str.length();
             Var var = findVarInAllTable(sym.toString().substring(2, pos));
-            return new Namespace(var.getAddr() - offset, 1);
+            int addr = var.getAddr();
+            addr -= offset;
+            Namespace reg1 = getReg();
+            addText(new LoadStore(reg1, reg0, new Namespace(addr, 1), 0));
+            return reg1;
         } else {
             Namespace index = transIndex2reg(sym.getIndex());
             Var var = findVarInAllTable(sym.getArrayname().getName());
-            Namespace addr = new Namespace(var.getAddr() - offset, 1);
-            addText(new Calculate(index, index, addr, "+"));
+            int addr = var.getAddr();
+            addr -= offset;
+            Namespace reg1 = getReg();
+            addText(new LoadStore(reg1, reg0, new Namespace(addr, 1), 0));
+            addText(new Calculate(reg1, reg1, index, "+"));
             return index;
         }
         return null;
@@ -389,6 +426,11 @@ public class IRTranslator {
             if (funcstack.size() > 0) {
                 for (Var var : funcstack.get(funcstack.size() - 1).getParams()) {
                     String varname = var.getName();
+                    if (params.get(i).getArrayname() != null && params.get(i).getArrayname().getName().equals(varname)) {
+                        ns = rsym2ns2(params.get(i), offset);
+                        flag = true;
+                        break;
+                    }
                     if (params.get(i).getSymbol() == null) break;
                     String name1 = params.get(i).getSymbol().getName();
                     if (varname.equals(name1)) {
@@ -487,6 +529,19 @@ public class IRTranslator {
         }
     }
 
+    private void addloadstore(Namespace reg1, Namespace reg2, Namespace addr, int type) {
+        if (addr.getType() == 1) {
+            addText(new LoadStore(reg1, reg2, addr, type));
+        } else {
+            if (reg2.getReg() == 0) {
+                addText(new LoadStore(reg1, addr, new Namespace(0, 1), type));
+            } else {
+                addText(new Calculate(addr, addr, reg2, "+"));
+                addText(new LoadStore(reg1, addr, new Namespace(0, 1), type));
+            }
+        }
+    }
+
     private void scanArrayLoadStore(ArrayLoadStore arrayLoadStore) {
         if (arrayLoadStore.getType() == 0) {
             Sym index1 = arrayLoadStore.getIndex1();
@@ -502,14 +557,14 @@ public class IRTranslator {
             Namespace indexreg = transIndex2reg(index1);
             if (addr.getValue() < 0) {
                 Namespace reg = getReg();
-                addText(new LoadStore(reg, reg, addr, 0));
+                addloadstore(reg, reg, addr, 0);
                 addText(new Calculate(reg, reg, indexreg, "+"));
                 addText(new LoadStore(rreg, reg, new Namespace(0, 1), 3));
                 freeReg(reg.getReg());
                 freeReg(rreg.getReg());
                 freeReg(indexreg.getReg());
             } else {
-                addText(new LoadStore(rreg, indexreg, addr, 3));
+                addloadstore(rreg, indexreg, addr, 3);
                 freeReg(rreg.getReg());
                 freeReg(indexreg.getReg());
             }
@@ -543,12 +598,13 @@ public class IRTranslator {
             if (addr.getValue() < 0) {
                 Namespace reg = getReg();
                 addText(new LoadStore(reg, reg, addr, 0));
+                addloadstore(reg, reg, addr, 0);
                 addText(new Calculate(reg, reg, t2, "+"));
                 addText(new LoadStore(rreg, reg, new Namespace(0, 1), 3));
                 freeReg(reg.getReg());
                 freeReg(rreg.getReg());
             } else {
-                addText(new LoadStore(rreg, t2, addr, 3));
+                addloadstore(rreg, t2, addr, 3);
                 if (rreg != null)
                     freeReg(rreg.getReg());
             }
@@ -568,33 +624,52 @@ public class IRTranslator {
                 if (laddr != null && laddr.getType() == 1) {
                     Namespace rreg = getReg();
                     Namespace indexreg = transIndex2reg(index1);
-                    addText(new LoadStore(rreg, indexreg, raddr, 0));
+                    addloadstore(rreg, indexreg, raddr, 0);
                     addText(new LoadStore(rreg, reg0, laddr, 3));
                     freeReg(rreg.getReg());
                 } else {
                     Namespace rreg = getReg();
                     Namespace indexreg = transIndex2reg(index1);
-                    addText(new LoadStore(rreg, indexreg, raddr, 0));
+                    addloadstore(rreg, indexreg, raddr, 0);
                     tmpname2reg.put(lsym.toString(), rreg);
                 }
             } else {
                 Namespace reg = getReg();
-                addText(new LoadStore(reg, null, new Namespace(raddr.getValue(), 1), 0));
-                Namespace laddr = lsym2ns(lsym);
-                if (laddr != null && laddr.getType() == 1) {
-                    Namespace rreg = getReg();
-                    Namespace indexreg = transIndex2reg(index1);
-                    addText(new Calculate(reg, reg, indexreg, "+"));
-                    addText(new LoadStore(rreg, reg, new Namespace(0, 1), 0));
-                    addText(new LoadStore(rreg, reg0, laddr, 3));
+                if (raddr.getType() == 1) {
+                    addText(new LoadStore(reg, null, new Namespace(raddr.getValue(), 1), 0));
+                    Namespace laddr = lsym2ns(lsym);
+                    if (laddr != null && laddr.getType() == 1) {
+                        Namespace rreg = getReg();
+                        Namespace indexreg = transIndex2reg(index1);
+                        addText(new Calculate(reg, reg, indexreg, "+"));
+                        addText(new LoadStore(rreg, reg, new Namespace(0, 1), 0));
+                        addloadstore(rreg, reg0, laddr, 3);
+                    } else {
+                        Namespace rreg = getReg();
+                        Namespace indexreg = transIndex2reg(index1);
+                        addText(new Calculate(reg, reg, indexreg, "+"));
+                        addText(new LoadStore(rreg, reg, new Namespace(0, 1), 0));
+                        tmpname2reg.put(lsym.toString(), rreg);
+                    }
+                    freeReg(reg.getReg());
                 } else {
-                    Namespace rreg = getReg();
-                    Namespace indexreg = transIndex2reg(index1);
-                    addText(new Calculate(reg, reg, indexreg, "+"));
-                    addText(new LoadStore(rreg, reg, new Namespace(0, 1), 0));
-                    tmpname2reg.put(lsym.toString(), rreg);
+                    Namespace laddr = lsym2ns(lsym);
+                    if (laddr != null && laddr.getType() == 1) {
+                        Namespace rreg = getReg();
+                        Namespace indexreg = transIndex2reg(index1);
+                        addText(new Calculate(raddr, raddr, indexreg, "+"));
+                        addText(new LoadStore(rreg, raddr, new Namespace(0, 1), 0));
+                        addloadstore(rreg, reg0, laddr, 3);
+                    } else {
+                        Namespace rreg = getReg();
+                        Namespace indexreg = transIndex2reg(index1);
+                        addText(new Calculate(raddr, raddr, indexreg, "+"));
+                        addText(new LoadStore(rreg, raddr, new Namespace(0, 1), 0));
+                        tmpname2reg.put(lsym.toString(), rreg);
+                    }
+                    freeReg(reg.getReg());
                 }
-                freeReg(reg.getReg());
+
             }
         } else {
             Sym index1 = arrayLoadStore.getIndex1();
@@ -626,7 +701,7 @@ public class IRTranslator {
             addText(new MTF(t1, "mflo"));
             addText(new Calculate(t2, t1, i2, "+"));
             addText(new Calculate(t2, t2, new Namespace(2, 1), "sll"));
-            addText(new LoadStore(lreg, t2, addr, 0));
+            addloadstore(lreg, t2, addr, 0);
             if (addr.getValue() < 0) {
                 addText(new Calculate(lreg, lreg, t2, "+"));
                 addText(new LoadStore(lreg, lreg, new Namespace(0, 1), 0));

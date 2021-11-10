@@ -14,6 +14,7 @@ public class Visitor {
     private ArrayList<Integer> stackWhile = new ArrayList<>();
     private String excOutAns = "";
     ArrayList<ArrayList<SymbolTable>> stackFuncParams = new ArrayList<>();
+    private ArrayList<Integer> stackstmtwhile = new ArrayList<>();
 
     public Visitor(ASTNode ast, ArrayList<ExcNode> excNodes) {
         this.ast = ast;
@@ -178,7 +179,14 @@ public class Visitor {
                                 + rnum + " in line " + node.getAstChildNodes().get(0).getLine()));
             }
         } else if (node.getType().equals("Stmt") && node.getAstChildNodes().get(0).getType().equals("while")) {
-            stackWhile.add(1);
+            if (node.getChild(4).getChild(0).getType().equals("Block")) {
+                stackWhile.add(1);
+            } else if (node.getChild(4).getAstChildNodes().size() > 0) {
+                if ((node.getChild(4).getChild(0).getName().equals("continue")
+                        || node.getChild(4).getChild(0).getName().equals("break"))) {
+                    stackstmtwhile.add(1);
+                }
+            }
         } else if (node.getName().equals("continue") || node.getName().equals("break")) {
             boolean flag = false;
             for (int i = 0; i <= curLevel; i++) {
@@ -186,6 +194,10 @@ public class Visitor {
                     flag = true;
                     break;
                 }
+            }
+            if (stackstmtwhile.size() > 0) {
+                flag = true;
+                stackstmtwhile.remove(stackstmtwhile.size() - 1);
             }
             if (!flag) {
                 excNodes.add(new ExcNode(node.getLine(), "m",
