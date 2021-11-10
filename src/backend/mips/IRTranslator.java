@@ -649,24 +649,27 @@ public class IRTranslator {
                     tmpname2reg.put(lsym.toString(), rreg);
                 }
             } else {
-                Namespace reg = getReg();
                 if (raddr.getType() == 1) {
-                    addText(new LoadStore(reg, null, new Namespace(raddr.getValue(), 1), 0));
                     Namespace laddr = lsym2ns(lsym);
                     if (laddr != null && laddr.getType() == 1) {
                         Namespace rreg = getReg();
                         Namespace indexreg = transIndex2reg(index1);
+                        Namespace reg = getReg();
+                        addText(new LoadStore(reg, null, new Namespace(raddr.getValue(), 1), 0));
                         addText(new Calculate(reg, reg, indexreg, "+"));
                         addText(new LoadStore(rreg, reg, new Namespace(0, 1), 0));
                         addloadstore(rreg, reg0, laddr, 3);
+                        freeReg(reg.getReg());
                     } else {
                         Namespace rreg = getReg();
                         Namespace indexreg = transIndex2reg(index1);
+                        Namespace reg = getReg();
+                        addText(new LoadStore(reg, null, new Namespace(raddr.getValue(), 1), 0));
                         addText(new Calculate(reg, reg, indexreg, "+"));
                         addText(new LoadStore(rreg, reg, new Namespace(0, 1), 0));
                         tmpname2reg.put(lsym.toString(), rreg);
+                        freeReg(reg.getReg());
                     }
-                    freeReg(reg.getReg());
                 } else {
                     Namespace laddr = lsym2ns(lsym);
                     if (laddr != null && laddr.getType() == 1) {
@@ -682,7 +685,6 @@ public class IRTranslator {
                         addText(new LoadStore(rreg, raddr, new Namespace(0, 1), 0));
                         tmpname2reg.put(lsym.toString(), rreg);
                     }
-                    freeReg(reg.getReg());
                 }
 
             }
