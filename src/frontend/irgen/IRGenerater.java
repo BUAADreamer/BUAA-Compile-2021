@@ -1,5 +1,6 @@
 package frontend.irgen;
 
+import backend.mips.*;
 import frontend.irgen.symtable.Block;
 import frontend.irgen.symtable.Func;
 import frontend.irgen.symtable.Var;
@@ -106,7 +107,37 @@ public class IRGenerater {
                 }
             }
         } else if (first.getType().equals("printf")) {
+            StringBuilder sb = new StringBuilder("");
+            String str = stmt.getChild(2).getName();
             ArrayList<Sym> syms = new ArrayList<>();
+            int cur = 0;
+            int exppos = 4;
+            for (int i = 1; i < str.length() - 1; i++) {
+                if (str.charAt(i) != '%') {
+                    sb.append(str.substring(i, i + 1));
+                } else {
+                    sb.append(str.substring(i, i + 2));
+                    cur++;
+                    if (cur == 6) {
+                        for (int j = 0; j < 6; j++) {
+                            syms.add(visitExp(stmt.getChild(exppos + j * 2)));
+                        }
+                        exppos += 12;
+                        addircode(new Printf(syms, new Sym("\"" + sb.toString() + "\"")));
+                        cur = 0;
+                        sb = new StringBuilder("");
+                        syms = new ArrayList<>();
+                    }
+                    i += 1;
+                }
+            }
+            if (!sb.toString().equals("")) {
+                for (int j = 0; j < cur; j++) {
+                    syms.add(visitExp(stmt.getChild(exppos + j * 2)));
+                }
+                addircode(new Printf(syms, new Sym("\"" + sb.toString() + "\"")));
+            }
+            /*
             Sym sym = new Sym(stmt.getChild(2).getName());
             for (ASTNode astNode : stmt.getAstChildNodes()) {
                 if (astNode.getType().equals("Exp")) {
@@ -114,6 +145,7 @@ public class IRGenerater {
                 }
             }
             addircode(new Printf(syms, sym));
+            */
         } else if (first.getType().equals("if")) {
             Label beginlabel = new Label(String.format("if_%d_begin", ++iftag));
             Label endlabel = new Label(String.format("if_%d_end", iftag));
@@ -491,6 +523,8 @@ public class IRGenerater {
     }
 
     private Sym visitAddExp(ASTNode addexp, Boolean neg) {
+        if (true)
+            return visitAddExpGlobal(addexp);
         if (addexp.getAstChildNodes().size() > 1) {
             ASTNode raddexp = new ASTNode("AddExp", "", false, null);
             raddexp.addChildNodes(addexp.getAstChildNodes().subList(2, addexp.getAstChildNodes().size()));
@@ -508,6 +542,46 @@ public class IRGenerater {
             Sym sym = getTempVar();
             addircode(new Exp(op, sym, rsym1, rsym2));
             return sym;
+        } else {
+            return visitMulExp(addexp.getChild(0));
+        }
+    }
+
+    private Sym visitAddExpGlobal(ASTNode addexp) {
+        if (addexp.getAstChildNodes().size() > 1) {
+            ASTNode rmulexp = new ASTNode("AddExp", "", false, null);
+            Sym m0 = visitMulExp(addexp.getChild(0));
+            int pos = 1;
+            while (m0.getType() == 0 && pos < addexp.getAstChildNodes().size()) {
+                String op = addexp.getAstChildNodes().get(pos).getName();
+                Sym sym1 = visitMulExp(addexp.getChild(pos + 1));
+                if (m0 != null && sym1 != null && sym1.getType() == m0.getType() && m0.getType() == 0) {
+                    m0.setValue(calcu(m0.getValue(), sym1.getValue(), op));
+                    pos += 2;
+                } else {
+                    Sym tmp = getTempVar();
+                    addircode(new Exp(op, tmp, m0, sym1));
+                    m0 = tmp;
+                    pos += 2;
+                    break;
+                }
+            }
+            if (pos >= addexp.getAstChildNodes().size()) return m0;
+            Sym ans = getTempVar();
+            addircode(new Exp("=", ans, m0, null));
+            while (pos < addexp.getAstChildNodes().size()) {
+                String op = addexp.getAstChildNodes().get(pos).getName();
+                Sym sym1 = visitMulExp(addexp.getChild(pos + 1));
+                if (ans != null && sym1 != null && ans.getType() == sym1.getType() && ans.getType() == 0) {
+                    ans = new Sym(calcu(ans.getValue(), sym1.getValue(), op));
+                    pos += 2;
+                } else {
+                    Sym tmp = getTempVar();
+                    addircode(new Exp(op, ans, ans, sym1));
+                    pos += 2;
+                }
+            }
+            return ans;
         } else {
             return visitMulExp(addexp.getChild(0));
         }
@@ -595,7 +669,7 @@ public class IRGenerater {
         } else if (op.equals("*")) {
             return value * value1;
         } else if (op.equals("/")) {
-            if (value1 == 0) return value;
+            if (value1 == 0) return 0;
             return value / value1;
         } else if (op.equals("%")) {
             return value % value1;

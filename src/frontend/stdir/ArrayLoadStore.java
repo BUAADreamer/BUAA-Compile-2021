@@ -61,7 +61,7 @@ public class ArrayLoadStore extends IRCode {
                 type = 2;
                 index1 = new Sym(index2.getValue() + index1.getValue() * array.getN2());
                 res.append(String.format("%s = %s[%s]\n",
-                        lsym, array, index2.getValue() + index1.getValue() * array.getN2()));
+                        lsym, array, index1));
                 return res.toString();
             }
             res.append(String.format("%s = %s * %s\n", tmp1, index1, array.getN2()));
