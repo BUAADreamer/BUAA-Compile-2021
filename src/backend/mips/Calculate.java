@@ -37,6 +37,8 @@ public class Calculate extends MipsCode {
                     return "slti";
                 case "sltiu":
                     return "sltiu";
+                case "sll":
+                    return "sll";
                 default:
                     return op;
             }

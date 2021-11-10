@@ -25,7 +25,7 @@ public class Assign extends MipsCode {
     @Override
     public String toString() {
         if (type == 0) {
-            return String.format("li %s %s\n", sym1, value);
+            return String.format("li %s 0x%x\n", sym1, value);
         } else if (type == 1) {
             return String.format("move %s %s\n", sym1, sym2);
         }

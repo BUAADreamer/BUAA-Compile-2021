@@ -44,15 +44,29 @@ public class ArrayLoadStore extends IRCode {
         if (type == 0) {
             res.append(String.format("%s[%s] = %s\n", array, index1, rsym));
         } else if (type == 1) {
+            if (index1.getType() == 0 && index2.getType() == 0) {
+                type = 0;
+                index1 = new Sym(index2.getValue() + index1.getValue() * array.getN2());
+                res.append(String.format("%s[%s] = %s\n",
+                        array, index1, rsym));
+                return res.toString();
+            }
             res.append(String.format("%s = %s * %s\n", tmp1, index1, array.getN2()));
             res.append(String.format("%s = %s + %s\n", tmp2, index2, tmp1));
             res.append(String.format("%s[%s] = %s\n", array, tmp2, rsym));
         } else if (type == 2) {
             res.append(String.format("%s = %s[%s]\n", lsym, array, index1));
         } else {
+            if (index1.getType() == 0 && index2.getType() == 0) {
+                type = 2;
+                index1 = new Sym(index2.getValue() + index1.getValue() * array.getN2());
+                res.append(String.format("%s = %s[%s]\n",
+                        lsym, array, index2.getValue() + index1.getValue() * array.getN2()));
+                return res.toString();
+            }
             res.append(String.format("%s = %s * %s\n", tmp1, index1, array.getN2()));
             res.append(String.format("%s = %s + %s\n", tmp2, index2, tmp1));
-            res.append(String.format("%s = %s[%s]\n", lsym, array, index1));
+            res.append(String.format("%s = %s[%s]\n", lsym, array, tmp2));
         }
         return res.toString();
     }

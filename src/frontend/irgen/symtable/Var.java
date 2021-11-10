@@ -1,5 +1,7 @@
 package frontend.irgen.symtable;
 
+import frontend.stdir.Sym;
+
 import java.util.ArrayList;
 
 public class Var extends SymTable {
@@ -29,6 +31,7 @@ public class Var extends SymTable {
         this.name = name;
         this.type = 2;
         this.level = level;
+        this.d1arrayvalue = new ArrayList<>();
         this.d2arrayvalue = new ArrayList<>();
     }
 
@@ -90,5 +93,24 @@ public class Var extends SymTable {
 
     public int getAddr() {
         return addr;
+    }
+
+    public void setValue(int value) {
+        this.value = value;
+    }
+
+    public void setD1arrayvalue(ArrayList<Sym> d1arrayvalue) {
+        this.d1arrayvalue = new ArrayList<>();
+        for (Sym value : d1arrayvalue) {
+            this.d1arrayvalue.add(value.getValue());
+        }
+    }
+
+    public ArrayList<Integer> getD1arrayvalue() {
+        return d1arrayvalue;
+    }
+
+    public int getValue() {
+        return value;
     }
 }

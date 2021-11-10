@@ -4,6 +4,7 @@ import backend.mips.IRTranslator;
 import frontend.IOtool;
 import frontend.irgen.IRGenerater;
 import frontend.stdir.IRCode;
+import frontend.stdir.Sym;
 
 import java.io.IOException;
 import java.util.ArrayList;

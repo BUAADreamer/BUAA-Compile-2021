@@ -11,6 +11,8 @@ public class Sym {
     private String name;
     private SymTable symbol;
     private ArrayList<Sym> params;
+    private Var arrayname;
+    private Sym index;
 
     /**
      * constructor of number
@@ -42,16 +44,24 @@ public class Sym {
         this.symbol = symbol;
     }
 
-    public Sym(ArrayList<Sym> params) {
-        this.params = params;
-        this.type = 3;
+    public Sym(Var arrayname, Sym index) {
+        if (index == null) {
+            this.type = 3;
+        } else {
+            this.type = 4;
+        }
+        this.arrayname = arrayname;
+        this.index = index;
     }
 
     @Override
     public String toString() {
         if (type == 0) return String.valueOf(value);
         else if (type == 1) return name;
-        else return symbol.toString();
+        else if (type == 2) return symbol.toString();
+        else if (type == 3) return "&" + arrayname.toString();
+        else if (type == 4) return String.format("&%s[%s]", arrayname, index);
+        return "";
     }
 
     public String getTypeOut() {
@@ -85,4 +95,15 @@ public class Sym {
     public void setValue(int value) {
         this.value = value;
     }
+
+    public Sym getIndex() {
+        return index;
+    }
+
+    public Var getArrayname() {
+        return arrayname;
+    }
+
+
+
 }
