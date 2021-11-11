@@ -280,6 +280,8 @@ public class IRGenerater {
     }
 
     private Sym visitRelExp(ASTNode relexp) {
+        if (true)
+            return visitRelExpGlobal(relexp);
         if (relexp.getAstChildNodes().size() > 1) {
             ASTNode rrelexp = new ASTNode("RelExp", "", false, null);
             rrelexp.addChildNodes(relexp.getAstChildNodes().subList(2, relexp.getAstChildNodes().size()));
@@ -316,6 +318,89 @@ public class IRGenerater {
             return ret;
         } else {
             return visitAddExp(relexp.getChild(0), false);
+        }
+    }
+
+    private Sym visitRelExpGlobal(ASTNode relexp) {
+        if (relexp.getAstChildNodes().size() > 1) {
+            Sym m0 = visitAddExpGlobal(relexp.getChild(0));
+            int pos = 1;
+            while (m0.getType() == 0 && pos < relexp.getAstChildNodes().size()) {
+                String op = relexp.getAstChildNodes().get(pos).getName();
+                Sym sym1 = visitAddExpGlobal(relexp.getChild(pos + 1));
+                if (m0 != null && sym1 != null && sym1.getType() == m0.getType() && m0.getType() == 0) {
+                    m0.setValue(calcu(m0.getValue(), sym1.getValue(), op));
+                    pos += 2;
+                } else {
+                    Sym ret = getTempVar();
+                    //judge lsym and rsym >0xffff
+                    if (sym1.getType() == 0) {
+                        if (sym1.getValue() > 0xffff) {
+                            Sym tmp = getTempVar();
+                            addircode(new Exp("=", tmp, sym1, null));
+                            sym1 = tmp;
+                        }
+                    }
+                    if (m0.getType() == 0) {
+                        if (m0.getValue() > 0xffff) {
+                            Sym tmp = getTempVar();
+                            addircode(new Exp("=", tmp, m0, null));
+                            m0 = tmp;
+                        }
+                    }
+                    if (op.equals(">") || op.equals("<=")) {
+                        addircode(new Exp("slti", ret, sym1, m0)); //cha = l==r?1:0;
+                        if (op.equals("<=")) {
+                            addircode(new Exp("-", ret, one, ret)); //cha = l==r?1:0;
+                        }
+                    } else if (op.equals("<") || op.equals(">=")) {
+                        addircode(new Exp("slti", ret, m0, sym1));
+                        if (op.equals(">=")) {
+                            addircode(new Exp("-", ret, one, ret)); //cha = l==r?1:0;; //cha = l==r?1:0;
+                        }
+                    }
+                    m0 = ret;
+                    pos += 2;
+                    break;
+                }
+            }
+            if (pos >= relexp.getAstChildNodes().size()) return m0;
+            Sym ans = getTempVar();
+            addircode(new Exp("=", ans, m0, null));
+            while (pos < relexp.getAstChildNodes().size()) {
+                String op = relexp.getAstChildNodes().get(pos).getName();
+                Sym sym1 = visitAddExpGlobal(relexp.getChild(pos + 1));
+                //judge lsym and rsym >0xffff
+                if (sym1.getType() == 0) {
+                    if (sym1.getValue() > 0xffff) {
+                        Sym tmp = getTempVar();
+                        addircode(new Exp("=", tmp, sym1, null));
+                        sym1 = tmp;
+                    }
+                }
+                if (m0.getType() == 0) {
+                    if (m0.getValue() > 0xffff) {
+                        Sym tmp = getTempVar();
+                        addircode(new Exp("=", tmp, ans, null));
+                        m0 = tmp;
+                    }
+                }
+                if (op.equals(">") || op.equals("<=")) {
+                    addircode(new Exp("slti", ans, sym1, ans)); //cha = l==r?1:0;
+                    if (op.equals("<=")) {
+                        addircode(new Exp("-", ans, one, ans)); //cha = l==r?1:0;
+                    }
+                } else if (op.equals("<") || op.equals(">=")) {
+                    addircode(new Exp("slti", ans, ans, sym1));
+                    if (op.equals(">=")) {
+                        addircode(new Exp("-", ans, one, ans)); //cha = l==r?1:0;; //cha = l==r?1:0;
+                    }
+                }
+                pos += 2;
+            }
+            return ans;
+        } else {
+            return visitAddExpGlobal(relexp.getChild(0));
         }
     }
 
@@ -673,6 +758,14 @@ public class IRGenerater {
             return value / value1;
         } else if (op.equals("%")) {
             return value % value1;
+        } else if (op.equals("<")) {
+            return value < value1 ? 1 : 0;
+        } else if (op.equals("<=")) {
+            return value <= value1 ? 1 : 0;
+        } else if (op.equals(">")) {
+            return value > value1 ? 1 : 0;
+        } else if (op.equals(">=")) {
+            return value >= value1 ? 1 : 0;
         }
         return 0;
     }
