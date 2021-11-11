@@ -56,6 +56,18 @@ public class LoadStore extends MipsCode {
             }
             res.append("\n");
             return res.toString();
+        } else if (offset != null && offset.getValue() == 0x80000000) {
+            if (type == 0 || type == 3) {
+                res.append(String.format(" %d($sp)", reg2.getValue()));
+            } else if (type == 1 || type == 4) {
+                res.append(" " + String.valueOf(reg2));
+            } else if (type == 2 || type == 5) {
+                res.append(String.format(" %d($sp)", reg2.getValue()));
+            } else if (type == 6) {
+                res.append(String.format(" %s", label));
+            }
+            res.append("\n");
+            return res.toString();
         }
         if (type == 0 || type == 3) {
             res.append(String.format(" %s(%s)", offset, reg2));

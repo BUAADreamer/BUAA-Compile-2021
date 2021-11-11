@@ -27,6 +27,7 @@ public class IRTranslator {
     private int strnum = 0;
     private Boolean main = false;
     private ArrayList<Func> funcstack = new ArrayList<>();
+    private int stackaddr = 0;
 
     public IRTranslator(ArrayList<IRCode> ircodes) {
         this.ircodes = ircodes;
@@ -834,8 +835,10 @@ public class IRTranslator {
                 blockstack.remove(curLevel--);
                 funcstack.remove(funcstack.size() - 1);
                 tmpname2reg = new HashMap<>();
+            } else {
+                funcodes.add(new LabelMipsCode(label.toString()));
+                stackaddr = 0;
             }
-            funcodes.add(new LabelMipsCode(label.toString()));
             return;
         }
         if (!names[1].equals("main") && !ident.equals("decline")) {

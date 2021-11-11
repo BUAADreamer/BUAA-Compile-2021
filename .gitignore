@@ -3,3 +3,6 @@
 /*.pdf
 /*.txt
 /*.asm
+/src/test/*
+/*.jar
+/*.py
