@@ -8,7 +8,7 @@ public class LoadStore extends MipsCode {
     private Namespace offset;
     private int type;
     private Namespace label;
-    private int base = 0x7fffeffc;
+    private int base = 0x7fff0000;
 
     /**
      * constructor

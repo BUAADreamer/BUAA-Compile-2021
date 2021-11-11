@@ -27,8 +27,8 @@ public class IRTranslator {
     private int strnum = 0;
     private Boolean main = false;
     private ArrayList<Func> funcstack = new ArrayList<>();
-    private int stackaddr = 0x7fffeffc;
-    private final int stackbase = 0x7fffeffc;
+    private int stackaddr = 0x7fff0000;
+    private final int stackbase = 0x7fff0000;
     private Boolean infunc = false;
 
     public IRTranslator(ArrayList<IRCode> ircodes) {
@@ -463,9 +463,15 @@ public class IRTranslator {
                 ns = rsym2ns(params.get(i));
             }
             if (ns.getType() == 1) {
-                Namespace reg = getReg();
-                addText(new Assign(reg, ns.getValue()));
-                ns = reg;
+                if (ns.getValue() > stackbase) {
+                    Namespace reg = getReg();
+                    addText(new Calculate(reg, new Namespace(29, 0), new Namespace(stackbase - ns.getValue(), 1), "+"));
+                    ns = reg;
+                } else {
+                    Namespace reg = getReg();
+                    addText(new Assign(reg, ns.getValue()));
+                    ns = reg;
+                }
             }
             addText(new LoadStore(ns, null, new Namespace(curbase, 1), 3));
             curbase += 4;
