@@ -44,7 +44,7 @@ public class Calculate extends MipsCode {
             }
         } else {
             if (op.equals("+")) {
-                return "add";
+                return "addu";
             } else if (op.equals("-")) {
                 return "sub";
             } else if (op.equals("/") || op.equals("%")) {

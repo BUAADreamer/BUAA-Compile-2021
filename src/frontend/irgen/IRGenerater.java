@@ -189,7 +189,7 @@ public class IRGenerater {
             addircode(new Jump(whilebegintags.get(whilebegintags.size() - 1)));
             return;
         } else if (first.getType().equals("return")) {
-            if (curLevel == 1 && blockstack.get(1).getName().equals("main")) {
+            if (blockstack.get(1).getName().equals("main")) {
                 addircode(new Label("mainfunc_ret_" + mainfunctag++));
                 return;
             }
