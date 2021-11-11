@@ -3,6 +3,7 @@ package backend.mips;
 public class StackManage extends MipsCode {
     Namespace reg;
     int type;
+    int offset;
 
     /**
      * @param reg
@@ -17,6 +18,11 @@ public class StackManage extends MipsCode {
         this.type = type;
     }
 
+    public StackManage(int type, int offset) {
+        this.type = type;
+        this.offset = offset;
+    }
+
     @Override
     public String toString() {
         if (type == 0) {
@@ -27,6 +33,10 @@ public class StackManage extends MipsCode {
             return "subi $sp $sp 4\n";
         } else if (type == 3) {
             return "addi $sp $sp 4\n";
+        } else if (type == 4) {
+            return "subi $sp $sp " + offset + "\n";
+        } else if (type == 5) {
+            return "addi $sp $sp " + offset + "\n";
         }
         return null;
     }

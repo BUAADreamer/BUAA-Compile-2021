@@ -8,6 +8,7 @@ public class LoadStore extends MipsCode {
     private Namespace offset;
     private int type;
     private Namespace label;
+    private int base = 0x7fffeffc;
 
     /**
      * constructor
@@ -56,13 +57,13 @@ public class LoadStore extends MipsCode {
             }
             res.append("\n");
             return res.toString();
-        } else if (offset != null && offset.getValue() == 0x80000000) {
+        } else if (offset != null && offset.getValue() >= base) {
             if (type == 0 || type == 3) {
-                res.append(String.format(" %d($sp)", reg2.getValue()));
+                res.append(String.format(" %d($sp)", base - offset.getValue()));
             } else if (type == 1 || type == 4) {
                 res.append(" " + String.valueOf(reg2));
             } else if (type == 2 || type == 5) {
-                res.append(String.format(" %d($sp)", reg2.getValue()));
+                res.append(String.format(" %d($sp)", base - offset.getValue()));
             } else if (type == 6) {
                 res.append(String.format(" %s", label));
             }
