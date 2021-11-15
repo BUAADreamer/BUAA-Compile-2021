@@ -511,6 +511,7 @@ public class IRGenerater {
                 ArrayList<Sym> initvalues = new ArrayList<>();
                 ArrayList<Sym> syms = new ArrayList<>();
                 Sym initvalue = null;
+                Boolean hasInitVal = false;
                 for (int j = 0; j < astNode.getAstChildNodes().size(); j++) {
                     if (astNode.getChild(j).getType().equals("Ident")) {
                         name = astNode.getChild(j).getName();
@@ -520,6 +521,7 @@ public class IRGenerater {
                         syms.add(symn);
                         j += 2;
                     } else if (astNode.getChild(j).getType().equals("InitVal") || astNode.getChild(j).getType().equals("ConstInitVal")) {
+                        hasInitVal = true;
                         if (type == 0) {
                             initvalue = visitExp(astNode.getChild(j).getChild(0));
                         } else if (type == 1) {
@@ -591,13 +593,13 @@ public class IRGenerater {
                     addVarSym(symTable);
                     symTable.setD1arrayvalue(initvalues);
                     Sym var = new Sym(symTable);
-                    addircode(new ArrayDecl(var, initvalues, syms));
+                    addircode(new ArrayDecl(var, initvalues, syms, hasInitVal));
                 } else {
                     Var symTable = new Var(n1, n2, isconst, name, level);
                     addVarSym(symTable);
                     symTable.setD1arrayvalue(initvalues);
                     Sym var = new Sym(symTable);
-                    addircode(new ArrayDecl(var, initvalues, syms));
+                    addircode(new ArrayDecl(var, initvalues, syms, hasInitVal));
                 }
             }
         }

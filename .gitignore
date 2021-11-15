@@ -6,4 +6,5 @@
 /src/test/*
 /*.jar
 /*.py
-/test/*.*
+/test
+/myoutput

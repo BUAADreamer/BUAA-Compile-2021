@@ -761,56 +761,78 @@ public class IRTranslator {
     private void scanArrayDecl(ArrayDecl arrayDecl) {
         Var array = (Var) arrayDecl.getSym().getSymbol();
         if (curLevel == 0) {
-            array.setAddr(gp);
-            gp += arrayDecl.getSpace();
-            addVarSym(array);
-            addData(new LabelMipsCode(String.format("%s:\n",
-                    arrayDecl.getSym().getSymbol().getName())));
-            for (Sym sym : arrayDecl.getArrayval()) {
-                if (sym == null) continue;
-                addData(new LabelMipsCode(String.format(".word %d\n",
-                        sym.getValue())));
+            if (arrayDecl.getHasInitVal()) {
+                array.setAddr(gp);
+                gp += arrayDecl.getSpace();
+                addVarSym(array);
+                addData(new LabelMipsCode(String.format("%s:\n",
+                        arrayDecl.getSym().getSymbol().getName())));
+                for (Sym sym : arrayDecl.getArrayval()) {
+                    if (sym == null) continue;
+                    addData(new LabelMipsCode(String.format(".word %d\n",
+                            sym.getValue())));
+                }
+            } else {
+                array.setAddr(gp);
+                gp += arrayDecl.getSpace();
+                addVarSym(array);
+                addData(new LabelMipsCode(String.format("%s: .space %d\n",
+                        arrayDecl.getSym().getSymbol().getName(), arrayDecl.getSpace())));
             }
         } else {
             if (!infunc) {
-                array.setAddr(fp);
-                addVarSym(array);
-                Namespace addr = new Namespace(fp, 1);
-                for (Sym sym : arrayDecl.getArrayval()) {
-                    if (sym == null) continue;
-                    if (sym.getType() == 0) {
-                        Namespace reg = num2reg(new Namespace(sym.getValue(), 1));
-                        addloadstore(reg, reg0, addr, 3);
-                        fp += 4;
-                        addr = new Namespace(fp, 1);
-                    } else {
-                        Namespace reg = rsym2ns(sym);
-                        addloadstore(reg, reg0, addr, 3);
-                        fp += 4;
-                        addr = new Namespace(fp, 1);
+                if (arrayDecl.getHasInitVal()) {
+                    array.setAddr(fp);
+                    addVarSym(array);
+                    Namespace addr = new Namespace(fp, 1);
+                    for (Sym sym : arrayDecl.getArrayval()) {
+                        if (sym == null) continue;
+                        if (sym.getType() == 0) {
+                            Namespace reg = num2reg(new Namespace(sym.getValue(), 1));
+                            addloadstore(reg, reg0, addr, 3);
+                            fp += 4;
+                            addr = new Namespace(fp, 1);
+                        } else {
+                            Namespace reg = rsym2ns(sym);
+                            addloadstore(reg, reg0, addr, 3);
+                            fp += 4;
+                            addr = new Namespace(fp, 1);
+                        }
                     }
+                    fp += arrayDecl.getSpace();
+                } else {
+                    array.setAddr(fp);
+                    addVarSym(array);
+                    Namespace addr = new Namespace(fp, 1);
+                    fp += arrayDecl.getSpace();
                 }
-                fp += arrayDecl.getSpace();
             } else {
-                addVarSym(array);
-                int baseaddr = stackaddr + (arrayDecl.getSpace() - 4);
-                array.setAddr(baseaddr);
-                Namespace addr = new Namespace(baseaddr, 1);
-                for (Sym sym : arrayDecl.getArrayval()) {
-                    if (sym == null) continue;
-                    if (sym.getType() == 0) {
-                        Namespace reg = num2reg(new Namespace(sym.getValue(), 1));
-                        addloadstore(reg, reg0, addr, 3);
-                        baseaddr -= 4;
-                        addr = new Namespace(baseaddr, 1);
-                    } else {
-                        Namespace reg = rsym2ns(sym);
-                        addloadstore(reg, reg0, addr, 3);
-                        baseaddr -= 4;
-                        addr = new Namespace(baseaddr, 1);
+                if (arrayDecl.getHasInitVal()) {
+                    addVarSym(array);
+                    int baseaddr = stackaddr + (arrayDecl.getSpace() - 4);
+                    array.setAddr(baseaddr);
+                    Namespace addr = new Namespace(baseaddr, 1);
+                    for (Sym sym : arrayDecl.getArrayval()) {
+                        if (sym == null) continue;
+                        if (sym.getType() == 0) {
+                            Namespace reg = num2reg(new Namespace(sym.getValue(), 1));
+                            addloadstore(reg, reg0, addr, 3);
+                            baseaddr -= 4;
+                            addr = new Namespace(baseaddr, 1);
+                        } else {
+                            Namespace reg = rsym2ns(sym);
+                            addloadstore(reg, reg0, addr, 3);
+                            baseaddr -= 4;
+                            addr = new Namespace(baseaddr, 1);
+                        }
                     }
+                    stackaddr += arrayDecl.getSpace();
+                } else {
+                    addVarSym(array);
+                    int baseaddr = stackaddr + (arrayDecl.getSpace() - 4);
+                    array.setAddr(baseaddr);
+                    stackaddr += arrayDecl.getSpace();
                 }
-                stackaddr += arrayDecl.getSpace();
             }
         }
         addVarSym(array);
