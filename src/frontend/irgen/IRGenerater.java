@@ -37,18 +37,22 @@ public class IRGenerater {
     private void visit(ASTNode ast) {
         addircode(new Label("decline_init_begin"));
         for (ASTNode astNode : ast.getAstChildNodes()) {
-            if (astNode.getType().equals("Decl")) {
-                visitDecl(astNode);
-            } else if (astNode.getType().equals("FuncDef")) {
-                visitFunc(astNode);
-            } else if (astNode.getType().equals("MainFuncDef")) {
-                addircode(new Label("decline_init_end"));
-                blockstack.add(new Block("main"));
-                addircode(new Label("block_main_begin"));
-                curLevel++;
-                visitBlock(astNode.getChild(4));
-                addircode(new Label("block_main_end"));
-                blockstack.remove(curLevel--);
+            switch (astNode.getType()) {
+                case "Decl":
+                    visitDecl(astNode);
+                    break;
+                case "FuncDef":
+                    visitFunc(astNode);
+                    break;
+                case "MainFuncDef":
+                    addircode(new Label("decline_init_end"));
+                    blockstack.add(new Block("main"));
+                    addircode(new Label("block_main_begin"));
+                    curLevel++;
+                    visitBlock(astNode.getChild(4));
+                    addircode(new Label("block_main_end"));
+                    blockstack.remove(curLevel--);
+                    break;
             }
         }
     }
@@ -67,76 +71,80 @@ public class IRGenerater {
 
     private void visitStmt(ASTNode stmt) {
         ASTNode first = stmt.getChild(0);
-        if (first.getType().equals("LVal")) {
-            if (stmt.getAstChildNodes().size() == 1) return;
-            if (stmt.getChild(1).getType().equals(";")) {
-                visitExp(stmt.getChild(0));
-                return;
-            }
-            if (stmt.getChild(2).getType().equals("Exp")) {
-                String name = stmt.getChild(0).getChild(0).getName();
-                Var sym = findVarInAllTable(name);
-                Sym value = visitExp(stmt.getChild(2));
-                if (sym.getType() == 0) {
-                    addircode(new Exp("=", new Sym(sym), value, null));
-                } else if (sym.getType() == 1) {
-                    Sym num = visitExp(stmt.getChild(0).getChild(2));
-                    addircode(new ArrayLoadStore(value, num, sym, 0));
-                } else {
-                    Sym num1 = visitExp(stmt.getChild(0).getChild(2));
-                    Sym num2 = visitExp(stmt.getChild(0).getChild(5));
-                    Sym tmp2 = getTempVar();
-                    Sym tmp1 = getTempVar();
-                    addircode(new ArrayLoadStore(value, tmp1, tmp2, num1, num2, sym, 1));
+        switch (first.getType()) {
+            case "LVal":
+                if (stmt.getAstChildNodes().size() == 1) return;
+                if (stmt.getChild(1) != null && stmt.getChild(1).getType().equals(";")) {
+                    visitExp(stmt.getChild(0));
+                    return;
                 }
-            } else {
-                String name = stmt.getChild(0).getChild(0).getName();
-                Var sym = findVarInAllTable(name);
-                Sym value = new Sym("getint()");
-                if (sym.getType() == 0) {
-                    addircode(new Exp("=", new Sym(sym), value, null));
-                } else if (sym.getType() == 1) {
-                    Sym num = visitExp(stmt.getChild(0).getChild(2));
-                    addircode(new ArrayLoadStore(value, num, sym, 0));
-                } else {
-                    Sym num1 = visitExp(stmt.getChild(0).getChild(2));
-                    Sym num2 = visitExp(stmt.getChild(0).getChild(5));
-                    Sym tmp2 = getTempVar();
-                    Sym tmp1 = getTempVar();
-                    addircode(new ArrayLoadStore(value, tmp1, tmp2, num1, num2, sym, 1));
-                }
-            }
-        } else if (first.getType().equals("printf")) {
-            StringBuilder sb = new StringBuilder("");
-            String str = stmt.getChild(2).getName();
-            ArrayList<Sym> syms = new ArrayList<>();
-            int cur = 0;
-            int exppos = 4;
-            for (int i = 1; i < str.length() - 1; i++) {
-                if (str.charAt(i) != '%') {
-                    sb.append(str.substring(i, i + 1));
-                } else {
-                    sb.append(str.substring(i, i + 2));
-                    cur++;
-                    if (cur == 6) {
-                        for (int j = 0; j < 6; j++) {
-                            syms.add(visitExp(stmt.getChild(exppos + j * 2)));
-                        }
-                        exppos += 12;
-                        addircode(new Printf(syms, new Sym("\"" + sb.toString() + "\"")));
-                        cur = 0;
-                        sb = new StringBuilder("");
-                        syms = new ArrayList<>();
+                if (stmt.getChild(2) != null && stmt.getChild(2).getType().equals("Exp")) {
+                    String name = stmt.getChild(0).getChild(0).getName();
+                    Var sym = findVarInAllTable(name);
+                    Sym value = visitExp(stmt.getChild(2));
+                    assert sym != null;
+                    if (sym.getType() == 0) {
+                        addircode(new Exp("=", new Sym(sym), value, null));
+                    } else if (sym.getType() == 1) {
+                        Sym num = visitExp(stmt.getChild(0).getChild(2));
+                        addircode(new ArrayLoadStore(value, num, sym, 0));
+                    } else {
+                        Sym num1 = visitExp(stmt.getChild(0).getChild(2));
+                        Sym num2 = visitExp(stmt.getChild(0).getChild(5));
+                        Sym tmp2 = getTempVar();
+                        Sym tmp1 = getTempVar();
+                        addircode(new ArrayLoadStore(value, tmp1, tmp2, num1, num2, sym, 1));
                     }
-                    i += 1;
+                } else {
+                    String name = stmt.getChild(0).getChild(0).getName();
+                    Var sym = findVarInAllTable(name);
+                    Sym value = new Sym("getint()");
+                    assert sym != null;
+                    if (sym.getType() == 0) {
+                        addircode(new Exp("=", new Sym(sym), value, null));
+                    } else if (sym.getType() == 1) {
+                        Sym num = visitExp(stmt.getChild(0).getChild(2));
+                        addircode(new ArrayLoadStore(value, num, sym, 0));
+                    } else {
+                        Sym num1 = visitExp(stmt.getChild(0).getChild(2));
+                        Sym num2 = visitExp(stmt.getChild(0).getChild(5));
+                        Sym tmp2 = getTempVar();
+                        Sym tmp1 = getTempVar();
+                        addircode(new ArrayLoadStore(value, tmp1, tmp2, num1, num2, sym, 1));
+                    }
                 }
-            }
-            if (!sb.toString().equals("")) {
-                for (int j = 0; j < cur; j++) {
-                    syms.add(visitExp(stmt.getChild(exppos + j * 2)));
+                break;
+            case "printf":
+                StringBuilder sb = new StringBuilder();
+                String str = stmt.getChild(2).getName();
+                ArrayList<Sym> syms = new ArrayList<>();
+                int cur = 0;
+                int exppos = 4;
+                for (int i = 1; i < str.length() - 1; i++) {
+                    if (str.charAt(i) != '%') {
+                        sb.append(str.charAt(i));
+                    } else {
+                        sb.append(str, i, i + 2);
+                        cur++;
+                        if (cur == 6) {
+                            for (int j = 0; j < 6; j++) {
+                                syms.add(visitExp(stmt.getChild(exppos + j * 2)));
+                            }
+                            exppos += 12;
+                            addircode(new Printf(syms, new Sym("\"" + sb + "\"")));
+                            cur = 0;
+                            sb = new StringBuilder();
+                            syms = new ArrayList<>();
+                        }
+                        i += 1;
+                    }
                 }
-                addircode(new Printf(syms, new Sym("\"" + sb.toString() + "\"")));
-            }
+                if (!sb.toString().equals("")) {
+                    for (int j = 0; j < cur; j++) {
+                        syms.add(visitExp(stmt.getChild(exppos + j * 2)));
+                    }
+                    addircode(new Printf(syms, new Sym("\"" + sb + "\"")));
+                }
             /*
             Sym sym = new Sym(stmt.getChild(2).getName());
             for (ASTNode astNode : stmt.getAstChildNodes()) {
@@ -146,69 +154,74 @@ public class IRGenerater {
             }
             addircode(new Printf(syms, sym));
             */
-        } else if (first.getType().equals("if")) {
-            Label beginlabel = new Label(String.format("if_%d_begin", ++iftag));
-            Label endlabel = new Label(String.format("if_%d_end", iftag));
-            Label endlabel1 = new Label(String.format("if_%d_end_%d", iftag, ++tmptag));
-            visitCond(stmt.getChild(2), beginlabel, endlabel, iftag, "if");
-            addircode(beginlabel);
-            visitStmt(stmt.getChild(4));
-            addircode(new Jump(endlabel1));
-            addircode(endlabel);
+                break;
+            case "if": {
+                Label beginlabel = new Label(String.format("if_%d_begin", ++iftag));
+                Label endlabel = new Label(String.format("if_%d_end", iftag));
+                Label endlabel1 = new Label(String.format("if_%d_end_%d", iftag, ++tmptag));
+                visitCond(stmt.getChild(2), beginlabel, endlabel, iftag, "if");
+                addircode(beginlabel);
+                visitStmt(stmt.getChild(4));
+                addircode(new Jump(endlabel1));
+                addircode(endlabel);
 //            Boolean hasend = false;
 //            if (stmt.getAstChildNodes().size() > 5 && stmt.getChild(6).getChild(0).getType().equals("if")) {
 //                addircode(endlabel);
 //                hasend = true;
 //            }
-            if (stmt.getAstChildNodes().size() > 5) {
-                visitStmt(stmt.getChild(6));
-            }
-            addircode(endlabel1);
+                if (stmt.getAstChildNodes().size() > 5) {
+                    visitStmt(stmt.getChild(6));
+                }
+                addircode(endlabel1);
 //            if (!hasend) {
 //                addircode(endlabel);
 //            }
-            return;
-        } else if (first.getType().equals("while")) {
-            Label condbeginlabel = new Label(String.format("cond_while_%d_0", ++whiletag));
-            Label beginlabel = new Label(String.format("while_%d_begin", whiletag));
-            Label endlabel = new Label(String.format("while_%d_end", whiletag));
-            visitCond(stmt.getChild(2), beginlabel, endlabel, whiletag, "while");
-            addircode(beginlabel);
-            whilebegintags.add(condbeginlabel);
-            whileendtags.add(endlabel);
-            visitStmt(stmt.getChild(4));
-            whilebegintags.remove(whilebegintags.size() - 1);
-            whileendtags.remove(whileendtags.size() - 1);
-            addircode(new Jump(condbeginlabel));
-            addircode(endlabel);
-            return;
-        } else if (first.getType().equals("break")) {
-            addircode(new Jump(whileendtags.get(whileendtags.size() - 1)));
-            return;
-        } else if (first.getType().equals("continue")) {
-            addircode(new Jump(whilebegintags.get(whilebegintags.size() - 1)));
-            return;
-        } else if (first.getType().equals("return")) {
-            if (blockstack.get(1).getName().equals("main")) {
-                addircode(new Label("mainfunc_ret_" + mainfunctag++));
                 return;
             }
-            if (stmt.getChild(1).getType().equals(";")) {
-                addircode(new FuncRet(null));
+            case "while": {
+                Label condbeginlabel = new Label(String.format("cond_while_%d_0", ++whiletag));
+                Label beginlabel = new Label(String.format("while_%d_begin", whiletag));
+                Label endlabel = new Label(String.format("while_%d_end", whiletag));
+                visitCond(stmt.getChild(2), beginlabel, endlabel, whiletag, "while");
+                addircode(beginlabel);
+                whilebegintags.add(condbeginlabel);
+                whileendtags.add(endlabel);
+                visitStmt(stmt.getChild(4));
+                whilebegintags.remove(whilebegintags.size() - 1);
+                whileendtags.remove(whileendtags.size() - 1);
+                addircode(new Jump(condbeginlabel));
+                addircode(endlabel);
                 return;
             }
-            addircode(new FuncRet(visitExp(stmt.getChild(1))));
-            return;
-        } else if (first.getType().equals("Block")) {
-            addircode(new Label(String.format("block_%d_begin", ++blocktag)));
-            int hisblocktag = blocktag;
-            blockstack.add(new Block("block"));
-            curLevel++;
-            visitBlock(first);
-            addircode(new Label(String.format("block_%d_end", hisblocktag)));
-            blockstack.remove(curLevel--);
-        } else if (first.getType().equals("Exp")) {
-            visitExp(first);
+            case "break":
+                addircode(new Jump(whileendtags.get(whileendtags.size() - 1)));
+                return;
+            case "continue":
+                addircode(new Jump(whilebegintags.get(whilebegintags.size() - 1)));
+                return;
+            case "return":
+                if (blockstack.get(1).getName().equals("main")) {
+                    addircode(new Label("mainfunc_ret_" + mainfunctag++));
+                    return;
+                }
+                if (stmt.getChild(1).getType().equals(";")) {
+                    addircode(new FuncRet(null));
+                    return;
+                }
+                addircode(new FuncRet(visitExp(stmt.getChild(1))));
+                return;
+            case "Block":
+                addircode(new Label(String.format("block_%d_begin", ++blocktag)));
+                int hisblocktag = blocktag;
+                blockstack.add(new Block("block"));
+                curLevel++;
+                visitBlock(first);
+                addircode(new Label(String.format("block_%d_end", hisblocktag)));
+                blockstack.remove(curLevel--);
+                break;
+            case "Exp":
+                visitExp(first);
+                break;
         }
     }
 
@@ -280,8 +293,8 @@ public class IRGenerater {
     }
 
     private Sym visitRelExp(ASTNode relexp) {
-        if (true)
-            return visitRelExpGlobal(relexp);
+        return visitRelExpGlobal(relexp);
+        /*
         if (relexp.getAstChildNodes().size() > 1) {
             ASTNode rrelexp = new ASTNode("RelExp", "", false, null);
             rrelexp.addChildNodes(relexp.getAstChildNodes().subList(2, relexp.getAstChildNodes().size()));
@@ -318,7 +331,7 @@ public class IRGenerater {
             return ret;
         } else {
             return visitAddExp(relexp.getChild(0), false);
-        }
+        }*/
     }
 
     private Sym visitRelExpGlobal(ASTNode relexp) {
@@ -328,12 +341,13 @@ public class IRGenerater {
             while (m0.getType() == 0 && pos < relexp.getAstChildNodes().size()) {
                 String op = relexp.getAstChildNodes().get(pos).getName();
                 Sym sym1 = visitAddExpGlobal(relexp.getChild(pos + 1));
-                if (m0 != null && sym1 != null && sym1.getType() == m0.getType() && m0.getType() == 0) {
+                if (sym1 != null && sym1.getType() == m0.getType() && m0.getType() == 0) {
                     m0.setValue(calcu(m0.getValue(), sym1.getValue(), op));
                     pos += 2;
                 } else {
                     Sym ret = getTempVar();
                     //judge lsym and rsym >0xffff
+                    assert sym1 != null;
                     if (sym1.getType() == 0) {
                         if (sym1.getValue() > 0xffff) {
                             Sym tmp = getTempVar();
@@ -425,7 +439,7 @@ public class IRGenerater {
                     int type1 = 0;
                     String name1 = "";
                     int level = curLevel;
-                    Boolean flag = false;
+                    boolean flag = false;
                     for (ASTNode astNode1 : astNode.getAstChildNodes()) {
                         if (astNode1.getType().equals("FuncFParam")) {
                             for (ASTNode astNode2 : astNode1.getAstChildNodes()) {
@@ -461,7 +475,7 @@ public class IRGenerater {
                         }
                     }
                     if (flag) {
-                        Var var = null;
+                        Var var;
                         if (type1 == 0) {
                             var = new Var(isconst, name1, level);
                         } else if (type1 == 1) {
@@ -490,10 +504,10 @@ public class IRGenerater {
     }
 
     private void visitDecl(ASTNode decl) {
-        int n1 = 0;
-        int n2 = 0;
-        boolean isconst = false;
-        int type = 0;
+        int n1;
+        int n2;
+        boolean isconst;
+        int type;
         String name = "";
         int level = curLevel;
         ASTNode specdecl = decl.getChild(0);
@@ -507,47 +521,52 @@ public class IRGenerater {
                 ArrayList<Sym> initvalues = new ArrayList<>();
                 ArrayList<Sym> syms = new ArrayList<>();
                 Sym initvalue = null;
-                Boolean hasInitVal = false;
+                boolean hasInitVal = false;
                 for (int j = 0; j < astNode.getAstChildNodes().size(); j++) {
-                    if (astNode.getChild(j).getType().equals("Ident")) {
-                        name = astNode.getChild(j).getName();
-                    } else if (astNode.getChild(j).getType().equals("[")) {
-                        type++;
-                        Sym symn = visitExp(astNode.getChild(j + 1));
-                        syms.add(symn);
-                        j += 2;
-                    } else if (astNode.getChild(j).getType().equals("InitVal") || astNode.getChild(j).getType().equals("ConstInitVal")) {
-                        hasInitVal = true;
-                        if (type == 0) {
-                            initvalue = visitExp(astNode.getChild(j).getChild(0));
-                        } else if (type == 1) {
-                            for (int m = 0; m < astNode.getChild(j).getAstChildNodes().size(); m++) {
-                                if (astNode.getChild(j).getChild(m).getAstChildNodes().size() > 0
-                                        && (astNode.getChild(j).getChild(m).getChild(0).getType().equals("Exp")
-                                        || astNode.getChild(j).getChild(m).getChild(0).getType().equals("ConstExp"))) {
-                                    Sym ret = visitExp(astNode.getChild(j).getChild(m).getChild(0));
-                                    initvalues.add(ret);
-                                    n1++;
+                    switch (astNode.getChild(j).getType()) {
+                        case "Ident":
+                            name = astNode.getChild(j).getName();
+                            break;
+                        case "[":
+                            type++;
+                            Sym symn = visitExp(astNode.getChild(j + 1));
+                            syms.add(symn);
+                            j += 2;
+                            break;
+                        case "InitVal":
+                        case "ConstInitVal":
+                            hasInitVal = true;
+                            if (type == 0) {
+                                initvalue = visitExp(astNode.getChild(j).getChild(0));
+                            } else if (type == 1) {
+                                for (int m = 0; m < astNode.getChild(j).getAstChildNodes().size(); m++) {
+                                    if (astNode.getChild(j).getChild(m).getAstChildNodes().size() > 0
+                                            && (astNode.getChild(j).getChild(m).getChild(0).getType().equals("Exp")
+                                            || astNode.getChild(j).getChild(m).getChild(0).getType().equals("ConstExp"))) {
+                                        Sym ret = visitExp(astNode.getChild(j).getChild(m).getChild(0));
+                                        initvalues.add(ret);
+                                        n1++;
+                                    }
                                 }
-                            }
-                        } else {
-                            for (int m = 0; m < astNode.getChild(j).getAstChildNodes().size(); m++) {
-                                if (astNode.getChild(j).getChild(m).getType().equals("InitVal")
-                                        || astNode.getChild(j).getChild(m).getType().equals("ConstInitVal")) {
-                                    ASTNode val = astNode.getChild(j).getChild(m);
-                                    for (int t = 0; t < val.getAstChildNodes().size(); t++) {
-                                        if (val.getChild(t).getType().equals("}")) {
-                                            n1++;
-                                        }
-                                        if (val.getChild(t).getType().equals("InitVal") || val.getChild(t).getType().equals("ConstInitVal")) {
-                                            Sym ret = visitExp(val.getChild(t).getChild(0));
-                                            initvalues.add(ret);
-                                            n2++;
+                            } else {
+                                for (int m = 0; m < astNode.getChild(j).getAstChildNodes().size(); m++) {
+                                    if (astNode.getChild(j).getChild(m).getType().equals("InitVal")
+                                            || astNode.getChild(j).getChild(m).getType().equals("ConstInitVal")) {
+                                        ASTNode val = astNode.getChild(j).getChild(m);
+                                        for (int t = 0; t < val.getAstChildNodes().size(); t++) {
+                                            if (val.getChild(t).getType().equals("}")) {
+                                                n1++;
+                                            }
+                                            if (val.getChild(t).getType().equals("InitVal") || val.getChild(t).getType().equals("ConstInitVal")) {
+                                                Sym ret = visitExp(val.getChild(t).getChild(0));
+                                                initvalues.add(ret);
+                                                n2++;
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
+                            break;
                     }
                 }
                 if (n1 != 0) {
@@ -582,7 +601,6 @@ public class IRGenerater {
                     if (initvalue.getType() == 0) symTable.setValue(initvalue.getValue());
                     addVarSym(symTable);
                     Sym var = new Sym(symTable);
-                    if (initvalue == null) initvalue = zero;
                     addircode(new Decl(var, initvalue));
                 } else if (type == 1) {
                     Var symTable = new Var(n1, isconst, name, level);
@@ -606,8 +624,8 @@ public class IRGenerater {
     }
 
     private Sym visitAddExp(ASTNode addexp, Boolean neg) {
-        if (true)
-            return visitAddExpGlobal(addexp);
+        return visitAddExpGlobal(addexp);
+        /*
         if (addexp.getAstChildNodes().size() > 1) {
             ASTNode raddexp = new ASTNode("AddExp", "", false, null);
             raddexp.addChildNodes(addexp.getAstChildNodes().subList(2, addexp.getAstChildNodes().size()));
@@ -628,6 +646,7 @@ public class IRGenerater {
         } else {
             return visitMulExp(addexp.getChild(0));
         }
+        */
     }
 
     private Sym visitAddExpGlobal(ASTNode addexp) {
@@ -671,8 +690,8 @@ public class IRGenerater {
 
     private Sym visitMulExp(ASTNode mulexp) {
         //turn on const int exp calcu or not
-        if (true)
-            return visitMulExpGlobal(mulexp);
+        return visitMulExpGlobal(mulexp);
+        /*
         if (mulexp.getAstChildNodes().size() > 1) {
             ASTNode rmulexp = new ASTNode("MulExp", "", false, null);
             Sym ans = getTempVar();
@@ -701,6 +720,8 @@ public class IRGenerater {
         } else {
             return visitUnaryExp(mulexp.getChild(0));
         }
+
+         */
     }
 
     private Sym visitMulExpGlobal(ASTNode mulexp) {
@@ -711,7 +732,7 @@ public class IRGenerater {
             while (m0.getType() == 0 && pos < mulexp.getAstChildNodes().size()) {
                 String op = mulexp.getAstChildNodes().get(pos).getName();
                 Sym sym1 = visitUnaryExp(mulexp.getChild(pos + 1));
-                if (m0 != null && sym1 != null && sym1.getType() == m0.getType() && m0.getType() == 0) {
+                if (sym1 != null && sym1.getType() == m0.getType() && m0.getType() == 0) {
                     m0.setValue(calcu(m0.getValue(), sym1.getValue(), op));
                     pos += 2;
                 } else {
@@ -804,7 +825,6 @@ public class IRGenerater {
                 Sym lsym = getTempVar();
                 for (ASTNode node : unaryexp.getAstChildNodes()) {
                     if (node.getType().equals("FuncRParams")) {
-                        ASTNode funcrparams = node;
                         for (ASTNode exp : node.getAstChildNodes()) {
                             if (exp.getType().equals("Exp")) {
                                 Sym sym = visitExp(exp);
@@ -827,6 +847,7 @@ public class IRGenerater {
         } else if (primaryexp.getAstChildNodes().get(0).getType().equals("LVal")) {
             String name = primaryexp.getChild(0).getChild(0).getName();
             Var sym = findVarInAllTable(name);
+            assert sym != null;
             if (sym.getType() == 0) {
                 if ((sym.isIsconst() || curLevel == 0)) {
                     return new Sym(sym.getValue());
@@ -907,8 +928,7 @@ public class IRGenerater {
     }
 
     private Func findFuncInAllTable(String name) {
-        Func ret = (Func) blockstack.get(0).findFunc(name);
-        return ret;
+        return (Func) blockstack.get(0).findFunc(name);
     }
 
     private Var findVarInAllTable(String name) {
@@ -946,4 +966,5 @@ public class IRGenerater {
     public ArrayList<IRCode> getIrcodes() {
         return ircodes;
     }
+
 }
