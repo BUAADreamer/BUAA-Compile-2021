@@ -437,20 +437,16 @@ public class IRGenerater {
                                         type1++;
                                         break;
                                     case "ConstExp":
+                                    case "Exp":
                                         Sym exp = visitExp(astNode2);
                                         if (type1 == 1) n1 = exp.getValue();
                                         else n2 = exp.getValue();
-                                        break;
-                                    case "Exp":
-                                        Sym exp1 = visitExp(astNode2);
-                                        if (type1 == 1) n1 = exp1.getValue();
-                                        else n2 = exp1.getValue();
                                         break;
                                 }
                             }
                             flag = true;
                         } else {
-                            Var var = null;
+                            Var var;
                             if (type1 == 0) {
                                 var = new Var(isconst, name1, level);
                             } else if (type1 == 1) {
@@ -642,7 +638,7 @@ public class IRGenerater {
             while (m0.getType() == 0 && pos < addexp.getAstChildNodes().size()) {
                 String op = addexp.getAstChildNodes().get(pos).getName();
                 Sym sym1 = visitMulExp(addexp.getChild(pos + 1));
-                if (m0 != null && sym1 != null && sym1.getType() == m0.getType() && m0.getType() == 0) {
+                if (sym1 != null && sym1.getType() == m0.getType() && m0.getType() == 0) {
                     m0.setValue(calcu(m0.getValue(), sym1.getValue(), op));
                     pos += 2;
                 } else {
@@ -661,12 +657,11 @@ public class IRGenerater {
                 Sym sym1 = visitMulExp(addexp.getChild(pos + 1));
                 if (ans != null && sym1 != null && ans.getType() == sym1.getType() && ans.getType() == 0) {
                     ans = new Sym(calcu(ans.getValue(), sym1.getValue(), op));
-                    pos += 2;
                 } else {
                     Sym tmp = getTempVar();
                     addircode(new Exp(op, ans, ans, sym1));
-                    pos += 2;
                 }
+                pos += 2;
             }
             return ans;
         } else {
@@ -735,12 +730,11 @@ public class IRGenerater {
                 Sym sym1 = visitUnaryExp(mulexp.getChild(pos + 1));
                 if (ans != null && sym1 != null && ans.getType() == sym1.getType() && ans.getType() == 0) {
                     ans = new Sym(calcu(ans.getValue(), sym1.getValue(), op));
-                    pos += 2;
                 } else {
                     Sym tmp = getTempVar();
                     addircode(new Exp(op, ans, ans, sym1));
-                    pos += 2;
                 }
+                pos += 2;
             }
             return ans;
         } else {
@@ -749,25 +743,26 @@ public class IRGenerater {
     }
 
     private int calcu(int value, int value1, String op) {
-        if (op.equals("+")) {
-            return value + value1;
-        } else if (op.equals("-")) {
-            return value - value1;
-        } else if (op.equals("*")) {
-            return value * value1;
-        } else if (op.equals("/")) {
-            if (value1 == 0) return 0;
-            return value / value1;
-        } else if (op.equals("%")) {
-            return value % value1;
-        } else if (op.equals("<")) {
-            return value < value1 ? 1 : 0;
-        } else if (op.equals("<=")) {
-            return value <= value1 ? 1 : 0;
-        } else if (op.equals(">")) {
-            return value > value1 ? 1 : 0;
-        } else if (op.equals(">=")) {
-            return value >= value1 ? 1 : 0;
+        switch (op) {
+            case "+":
+                return value + value1;
+            case "-":
+                return value - value1;
+            case "*":
+                return value * value1;
+            case "/":
+                if (value1 == 0) return 0;
+                return value / value1;
+            case "%":
+                return value % value1;
+            case "<":
+                return value < value1 ? 1 : 0;
+            case "<=":
+                return value <= value1 ? 1 : 0;
+            case ">":
+                return value > value1 ? 1 : 0;
+            case ">=":
+                return value >= value1 ? 1 : 0;
         }
         return 0;
     }
@@ -903,7 +898,7 @@ public class IRGenerater {
             }
         } else {
             String name = primaryexp.getChild(0).getChild(0).getChild(0).getName();
-            return new Sym(Integer.valueOf(name));
+            return new Sym(Integer.parseInt(name));
         }
     }
 
@@ -913,8 +908,7 @@ public class IRGenerater {
 
     private Func findFuncInAllTable(String name) {
         Func ret = (Func) blockstack.get(0).findFunc(name);
-        if (ret != null) return ret;
-        return null;
+        return ret;
     }
 
     private Var findVarInAllTable(String name) {
