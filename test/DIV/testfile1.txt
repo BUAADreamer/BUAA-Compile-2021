@@ -1,0 +1,9 @@
+int main(){
+    int x=3;
+    x=-300;
+    printf("%d\n",x%3);
+    printf("%d\n",x/15);
+    printf("%d\n",x%17);
+    printf("%d\n",x/(-15));
+    return 0;
+}

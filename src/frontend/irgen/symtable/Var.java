@@ -15,6 +15,8 @@ public class Var extends SymTable {
     int value;
     ArrayList<Integer> d1arrayvalue;
     ArrayList<ArrayList<Integer>> d2arrayvalue;
+    boolean isrparam = false;
+    int reg = -1;
 
     public Var(int n1, boolean isconst, String name, int level) {
         this.n1 = n1;
@@ -41,6 +43,11 @@ public class Var extends SymTable {
         this.level = level;
         this.type = 0;
         this.d1arrayvalue = new ArrayList<>();
+    }
+
+    public Var(String name, int level) {
+        this.name = name;
+        this.level = level;
     }
 
     @Override
@@ -112,5 +119,25 @@ public class Var extends SymTable {
 
     public int getValue() {
         return value;
+    }
+
+    public void setIsrparam(boolean isrparam) {
+        this.isrparam = isrparam;
+    }
+
+    public boolean isIsrparam() {
+        return isrparam;
+    }
+
+    public void setReg(int reg) {
+        this.reg = reg;
+    }
+
+    public int getReg() {
+        return reg;
+    }
+
+    public int getLevel() {
+        return level;
     }
 }

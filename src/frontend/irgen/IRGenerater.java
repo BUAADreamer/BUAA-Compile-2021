@@ -959,6 +959,10 @@ public class IRGenerater {
         return new Sym("t" + regNum++);
     }
 
+    public int getRegNum() {
+        return regNum;
+    }
+
     public String getIroutput() {
         return iroutput;
     }

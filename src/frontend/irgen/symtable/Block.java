@@ -33,6 +33,17 @@ public class Block extends SymTable {
         return null;
     }
 
+    public SymTable findVar1(String name) {
+        if (true)
+            return findVar(name);
+        for (SymTable symTable : symTables) {
+            if (symTable instanceof Var && ((symTable.getName() + ((Var) symTable).getLevel()).equals(name) || (symTable.getName().equals(name)))) {
+                return symTable;
+            }
+        }
+        return null;
+    }
+
     @Override
     public String getName() {
         return name;

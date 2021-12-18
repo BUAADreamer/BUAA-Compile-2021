@@ -53,6 +53,10 @@ public class ArrayDecl extends IRCode {
         return sym;
     }
 
+    public Sym getSym1() {
+        return new Sym(sym.toString(), true);
+    }
+
     public ArrayList<Sym> getArrayval() {
         return arrayval;
     }
@@ -72,4 +76,13 @@ public class ArrayDecl extends IRCode {
     public Boolean getHasInitVal() {
         return hasInitVal;
     }
+
+    public void setArrayval(ArrayList<Sym> arrayval) {
+        this.arrayval = arrayval;
+    }
+
+    public void setHasInitVal(Boolean hasInitVal) {
+        this.hasInitVal = hasInitVal;
+    }
+
 }

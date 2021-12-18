@@ -1,0 +1,12 @@
+//Exp
+void test_Exp(int a, int b){
+	int c = a + b - a * b / 2 % 3;
+	;
+	printf("test Exp, should be 5: %d\n", c);
+	return;
+}
+
+int main(){
+	test_Exp(2, 3);
+	return 0;
+}

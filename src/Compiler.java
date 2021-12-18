@@ -15,14 +15,14 @@ public class Compiler {
          *       4-->all frontend basic
          *       5-->all frontend basic and frontend optimizer
          */
-        int frontlevel = 4;
+        int frontlevel = 5;
         Frontend frontend = new Frontend(frontlevel);
         /**
          * backlevel:
          *       0-->backend close
          *       1-->backend open
          */
-        int backlevel = 1;
-        Backend backend = new Backend(frontend.getIrCodes(), backlevel);
+        int backlevel = 2;
+        Backend backend = new Backend(frontend.getIrCodes(), backlevel, frontend.getCompileUnit());
     }
 }

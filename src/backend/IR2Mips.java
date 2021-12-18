@@ -1,5 +1,9 @@
-package backend.mips;
+package backend;
 
+import backend.mips.*;
+import frontend.irgen.optimize.BasicBlock;
+import frontend.irgen.optimize.CompileUnit;
+import frontend.irgen.optimize.FuncBlock;
 import frontend.irgen.symtable.Block;
 import frontend.irgen.symtable.Func;
 import frontend.irgen.symtable.Var;
@@ -7,57 +11,115 @@ import frontend.stdir.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
-public class IRTranslator {
-    private ArrayList<IRCode> ircodes;
-    private String mipsout = "";
-    private ArrayList<Block> blockstack = new ArrayList<>();
-    private int curLevel = 0;
+public class IR2Mips {
+    private CompileUnit compileUnit;
+    private ArrayList<IRCode> globaldeclines;
+    private ArrayList<FuncBlock> funcBlocks;
+    private ArrayList<MipsCode> datacodes = new ArrayList<>();
     private ArrayList<MipsCode> mipsCodes = new ArrayList<>();
-    private ArrayList<MipsCode> texts = new ArrayList<>();
-    private ArrayList<MipsCode> datas = new ArrayList<>();
+    private ArrayList<Block> blockstack = new ArrayList<>();
+    int[] tmpregs = {3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28};
+    int[] globalregs = {16, 17, 18, 19, 20, 21, 22, 23};
     private int gp = 0x10010000;
     private int fp = 0x10040000;
-    private int sp = 0x7fffeffc;
-    private int textaddr = 0x00400000;
-    private ArrayList<Boolean> regMap = new ArrayList<>();
-    private HashMap<String, Namespace> tmpname2reg = new HashMap<>();
-    private ArrayList<MipsCode> funcodes = new ArrayList<>();
-    private Namespace reg0 = new Namespace(0, 0);
-    private int strnum = 0;
-    private Boolean main = false;
-    private ArrayList<Func> funcstack = new ArrayList<>();
+    private int curFunc = 0;
+    int curLevel = 0;
+    ArrayList<MipsCode> curfunccodes = new ArrayList<>();
+    Namespace reg0 = new Namespace(0, 0);
+    int strnum = 0;
     private int stackaddr = 0x7fff0000;
     private final int stackbase = 0x7fff0000;
-    private Boolean infunc = false;
+    private ArrayList<Func> funcstack = new ArrayList<>();
+    private HashMap<Integer, Boolean> regpool = new HashMap<>(); //3-15 24-28
+    private HashMap<Integer, Sym> globalreg2sym = new HashMap<>(); //16-23
+    private HashMap<Integer, Sym> tmpreg2sym = new HashMap<>();
+    private String mipsout;
 
-    public IRTranslator(ArrayList<IRCode> ircodes) {
-        this.ircodes = ircodes;
-        for (int i = 0; i < 32; i++) regMap.add(true);
-        blockstack.add(new Block("Global"));
-        datas.add(new LabelMipsCode(".data\n"));
-        texts.add(new LabelMipsCode(".text\n"));
-        scanircodes();
+    public IR2Mips(CompileUnit compileUnit) {
+        this.compileUnit = compileUnit;
+        globaldeclines = compileUnit.getGlobaldecls();
+        resetGlobalRegpool();
+        resetTmpRegpool();
+        funcBlocks = compileUnit.getFuncBlocks();
+        datacodes.add(new LabelMipsCode(".data\n"));
+        transdecls();
+        for (; curFunc < funcBlocks.size(); curFunc++) {
+            transFunc();
+        }
         setMipsout();
     }
 
-    private void scanircodes() {
-        //System.out.println(ircodes.size());
-        for (int i = 0; i < ircodes.size(); i++) {
-            //System.out.println(i);
-            if (ircodes.get(i) instanceof Label) scanLabel((Label) ircodes.get(i));
-            else if (ircodes.get(i) instanceof Decl) scanDecl((Decl) ircodes.get(i));
-            else if (ircodes.get(i) instanceof ArrayDecl) scanArrayDecl((ArrayDecl) ircodes.get(i));
-            else if (ircodes.get(i) instanceof ArrayLoadStore) scanArrayLoadStore((ArrayLoadStore) ircodes.get(i));
-            else if (ircodes.get(i) instanceof FuncDecl) scanFuncDecl((FuncDecl) ircodes.get(i));
-            else if (ircodes.get(i) instanceof FuncParam) scanFuncParam((FuncParam) ircodes.get(i));
-            else if (ircodes.get(i) instanceof FuncRet) scanFuncRet((FuncRet) ircodes.get(i));
-            else if (ircodes.get(i) instanceof FuncCall) scanFuncCall((FuncCall) ircodes.get(i));
-            else if (ircodes.get(i) instanceof Jump) scanJump((Jump) ircodes.get(i));
-            else if (ircodes.get(i) instanceof CondBranch) scanCondBranch((CondBranch) ircodes.get(i));
-            else if (ircodes.get(i) instanceof Printf) scanPrintf((Printf) ircodes.get(i));
-            else if (ircodes.get(i) instanceof Exp) scanExp((Exp) ircodes.get(i));
-            //System.out.println(ircodes.get(i));
+    void addVarSym(Var var) {
+        blockstack.get(curLevel).addSym(var);
+    }
+
+    private void addMipsCode(MipsCode mipsCode) {
+        mipsCodes.add(mipsCode);
+    }
+
+    private void addData(MipsCode mipsCode) {
+        datacodes.add(mipsCode);
+    }
+
+    private void addText(MipsCode mipsCode) {
+        curfunccodes.add(mipsCode);
+    }
+
+    void resetTmpRegpool() {
+        for (int reg : tmpregs) {
+            regpool.put(reg, false);
+        }
+        tmpreg2sym = new HashMap<>();
+    }
+
+    void resetGlobalRegpool() {
+        for (int reg : globalregs) {
+            regpool.put(reg, false);
+        }
+        globalreg2sym = new HashMap<>();
+    }
+
+    void transdecls() {
+        blockstack.add(new Block("global"));
+        for (IRCode irCode : globaldeclines) {
+            if (irCode instanceof ArrayDecl) {
+                transGlobalArrayDecl((ArrayDecl) irCode);
+            } else {
+                transGlobalDecl((Decl) irCode);
+            }
+        }
+    }
+
+    private void transGlobalDecl(Decl decl) {
+        Var var = (Var) decl.getSym().getSymbol();
+        var.setAddr(gp);
+        gp += 4;
+        addVarSym(var);
+        addData(new LabelMipsCode(String.format("%s: .word %d\n",
+                decl.getSym().getSymbol().getName(), decl.getRsym().getValue())));
+    }
+
+    void transGlobalArrayDecl(ArrayDecl arrayDecl) {
+        Var array = (Var) arrayDecl.getSym().getSymbol();
+        if (arrayDecl.getHasInitVal()) {
+            array.setAddr(gp);
+            gp += arrayDecl.getSpace();
+            addVarSym(array);
+            addData(new LabelMipsCode(String.format("%s:\n",
+                    arrayDecl.getSym().getSymbol().getName())));
+            for (Sym sym : arrayDecl.getArrayval()) {
+                if (sym == null) continue;
+                addData(new LabelMipsCode(String.format(".word %d\n",
+                        sym.getValue())));
+            }
+        } else {
+            array.setAddr(gp);
+            gp += arrayDecl.getSpace();
+            addVarSym(array);
+            addData(new LabelMipsCode(String.format("%s: .space %d\n",
+                    arrayDecl.getSym().getSymbol().getName(), arrayDecl.getSpace())));
         }
     }
 
@@ -68,7 +130,7 @@ public class IRTranslator {
         Namespace rname1 = rsym2ns(rsym1);
         Namespace rname2 = rsym2ns(rsym2);
         Namespace lname = lsym2ns(lsym);
-        if (lname != null && lname.type == 0) {
+        if (lname != null && lname.getType() == 0) {
             if (exp.getOp().equals("=")) {
                 addText(new Assign(lname, rname1));
             } else if (exp.getOp().equals("%") || exp.getOp().equals("*") || exp.getOp().equals("/") || exp.getOp().equals("**")) {
@@ -178,52 +240,72 @@ public class IRTranslator {
         }
     }
 
+    private void addloadstore(Namespace reg1, Namespace reg2, Namespace addr, int type) {
+        if (addr.getType() == 1) {
+            if (addr.getValue() >= stackbase) {
+                if (reg2 != null && reg2.getReg() > 0) {
+                    addText(new Calculate(reg2, reg2, new Namespace(stackbase - addr.getValue(), 1), "+"));
+                    addText(new Calculate(reg2, reg2, new Namespace(29, 0), "+"));
+                    addText(new LoadStore(reg1, reg2, new Namespace(0, 1), type));
+                    return;
+                } else {
+                    addText(new LoadStore(reg1, reg2, addr, type));
+                    return;
+                }
+            }
+            addText(new LoadStore(reg1, reg2, addr, type));
+        } else {
+            if (reg2.getReg() == 0) {
+                addText(new LoadStore(reg1, addr, new Namespace(0, 1), type));
+            } else {
+                addText(new Calculate(addr, addr, reg2, "+"));
+                addText(new LoadStore(reg1, addr, new Namespace(0, 1), type));
+            }
+        }
+    }
+
+    private void freeReg(int reg) {
+        regpool.put(reg, false);
+    }
+
+    private Namespace getReg() {
+        for (int reg : tmpregs) {
+            if (!regpool.get(reg) && !tmpreg2sym.containsKey(reg)) {
+                regpool.put(reg, true);
+                return new Namespace(reg, 0);
+            }
+        }
+        for (int reg : tmpregs) {
+            if (!tmpreg2sym.containsKey(reg)) {
+                regpool.put(reg, true);
+                return new Namespace(reg, 0);
+            }
+        }
+        return new Namespace(tmpregs[0], 0);
+    }
+
     private Namespace lsym2ns(Sym sym) {
         if (sym == null) return null;
         if (sym.getType() == 1) {
             if (sym.toString().charAt(0) == '%' || sym.toString().charAt(0) == '@') {
                 Var var = findVarInAllTable(sym.toString().substring(1));
                 int addr = var.getAddr();
-                return new Namespace(addr, 1);
-            } else {
-                Namespace reg = getReg();
-                tmpname2reg.put(sym.toString(), reg);
-                return reg;
-            }
-        } else {
-            Var var = findVarInAllTable(sym.toString().substring(1));
-            if (var == null) return null;
-            int addr = var.getAddr();
-            return new Namespace(addr, 1);
-        }
-    }
-
-    private Namespace lsym2ns1(Sym sym) {
-        if (sym == null) return null;
-        if (sym.getType() == 1) {
-            if (sym.toString().charAt(0) == '%' || sym.toString().charAt(0) == '@') {
-                Var var = findVarInAllTable(sym.toString().substring(1));
-                int addr = var.getAddr();
-                if (addr < 0) {
-                    Namespace reg = getReg();
-                    addloadstore(reg, reg, new Namespace(addr, 1), 0);
-                    return reg;
+                if (var.getReg() > 0) {
+                    return new Namespace(var.getReg(), 0);
                 }
                 return new Namespace(addr, 1);
             } else {
+                if (sym2reg(sym) != null) {
+                    return sym2reg(sym);
+                }
                 Namespace reg = getReg();
-                tmpname2reg.put(sym.toString(), reg);
+                tmpreg2sym.put(reg.getReg(), sym);
                 return reg;
             }
         } else {
             Var var = findVarInAllTable(sym.toString().substring(1));
             if (var == null) return null;
             int addr = var.getAddr();
-            if (addr < 0) {
-                Namespace reg = getReg();
-                addloadstore(reg, reg, new Namespace(addr, 1), 0);
-                return reg;
-            }
             return new Namespace(addr, 1);
         }
     }
@@ -235,6 +317,9 @@ public class IRTranslator {
         } else if (sym.getType() == 1) {
             if ((sym.toString().charAt(0) == '%' || sym.toString().charAt(0) == '@')) {
                 Var var = findVarInAllTable(sym.toString().substring(1));
+                if (var.getReg() > 0) {
+                    return new Namespace(var.getReg(), 0);
+                }
                 int addr = var.getAddr();
                 Namespace reg1 = getReg();
                 addloadstore(reg1, reg0, new Namespace(addr, 1), 0);
@@ -251,11 +336,18 @@ public class IRTranslator {
                 Var var = findVarInAllTable(sym.toString().substring(2, pos));
                 return new Namespace(var.getAddr(), 1);
             } else {
-                Namespace reg = tmpname2reg.get(sym.toString());
+                Namespace reg = sym2reg(sym);
+                if (reg == null) {
+                    reg = getReg();
+                    tmpreg2sym.put(reg.getReg(), sym);
+                }
                 return reg;
             }
         } else if (sym.getType() == 2) {
             Var var = findVarInAllTable(sym.toString().substring(1));
+            if (var.getReg() > 0) {
+                return new Namespace(var.getReg(), 0);
+            }
             if (var == null) return null;
             int addr = var.getAddr();
             Namespace reg1 = getReg();
@@ -291,6 +383,9 @@ public class IRTranslator {
                     return new Namespace(var.getAddr(), 1);
                 }
                 Var var = findVarInAllTable(sym.toString().substring(1));
+                if (var.getReg() > 0) {
+                    return new Namespace(var.getReg(), 0);
+                }
                 int addr = var.getAddr();
                 addr -= offset;
                 Namespace reg1 = getReg();
@@ -312,11 +407,14 @@ public class IRTranslator {
                     return null;
                 }
             } else {
-                Namespace reg = tmpname2reg.get(sym.toString());
+                Namespace reg = sym2reg(sym);
                 return reg;
             }
         } else if (sym.getType() == 2) {
             Var var = findVarInAllTable(sym.toString().substring(1));
+            if (var.getReg() > 0) {
+                return new Namespace(var.getReg(), 0);
+            }
             if (var == null) return null;
             int addr = var.getAddr();
             addr -= offset;
@@ -345,6 +443,47 @@ public class IRTranslator {
             return reg1;
         }
         return null;
+    }
+
+    Namespace sym2reg(Sym sym) {
+        for (int reg : tmpreg2sym.keySet()) {
+            if (tmpreg2sym.get(reg).toString().equals(sym.toString())) {
+                return new Namespace(reg, 0);
+            }
+        }
+        return null;
+    }
+
+    ArrayList<Namespace> getUsingRegs() {
+        ArrayList<Namespace> regs = new ArrayList<>();
+        for (int reg : regpool.keySet()) {
+            if (regpool.get(reg)) {
+                regs.add(new Namespace(reg, 0));
+            }
+        }
+        return regs;
+    }
+
+    private Namespace transIndex2reg(Sym index) {
+        if (index.getType() == 0) {
+            Namespace reg = getReg();
+            addText(new Assign(reg, index.getValue() * 4));
+            //addText(new Calculate(reg, reg, new Namespace(2, 1), "sll"));
+            return reg;
+        } else if (index.getType() == 1) {
+            Namespace i = sym2reg(index);
+            addText(new Calculate(i, i, new Namespace(2, 1), "sll"));
+            return i;
+        } else {
+            Namespace i = rsym2ns(index);
+            if (i.getType() == 1) {
+                Namespace reg = getReg();
+                addText(new Assign(reg, i.getValue()));
+                return reg;
+            }
+            addText(new Calculate(i, i, new Namespace(2, 1), "sll"));
+            return i;
+        }
     }
 
     private void scanPrintf(Printf printf) {
@@ -411,15 +550,13 @@ public class IRTranslator {
     }
 
     private void scanFuncCall(FuncCall funcCall) {
-        Func func = findFuncInAllTable(funcCall.getFunc().getName());
-        Namespace addr = new Namespace(func.getAddr(), 1);
         ArrayList<Sym> params = funcCall.getParams();
         ArrayList<Var> fparams = funcCall.getFunc().getParams();
         int regbase = stackaddr;
         //push possible useful reg
-        ArrayList<String> names = new ArrayList<>(tmpname2reg.keySet());
-        for (String name : tmpname2reg.keySet()) {
-            addText(new LoadStore(tmpname2reg.get(name), null, new Namespace(regbase, 1), 3));
+        ArrayList<Namespace> usingregs = getUsingRegs();
+        for (Namespace reg : usingregs) {
+            addText(new LoadStore(reg, null, new Namespace(regbase, 1), 3));
             regbase += 4;
         }
         //push cur ret addr
@@ -489,8 +626,8 @@ public class IRTranslator {
         addText(new LoadStore(new Namespace(31, 0), null, new Namespace(regbase, 1), 0));
         regbase -= 4;
         //reset possible useful reg
-        for (int i = names.size() - 1; i >= 0; i--) {
-            addText(new LoadStore(tmpname2reg.get(names.get(i)), null, new Namespace(regbase, 1), 0));
+        for (int i = usingregs.size() - 1; i >= 0; i--) {
+            addText(new LoadStore(usingregs.get(i), null, new Namespace(regbase, 1), 0));
             regbase -= 4;
         }
         Namespace lns = lsym2ns(funcCall.getLsym());
@@ -506,78 +643,41 @@ public class IRTranslator {
     private void scanFuncRet(FuncRet funcRet) {
         if (funcRet != null && funcRet.getSym() != null) {
             Namespace rns = rsym2ns(funcRet.getSym());
-            funcodes.add(new Assign(new Namespace(2, 0), rns));
+            curfunccodes.add(new Assign(new Namespace(2, 0), rns));
         }
-        funcodes.add(new BrJump(new Namespace(31, 0), "jr"));
+        curfunccodes.add(new BrJump(new Namespace(31, 0), "jr"));
     }
 
     private void scanFuncParam(FuncParam funcParam) {
-
     }
 
-    Namespace transIndex2reg(Sym index) {
-        if (index.getType() == 0) {
-            Namespace reg = getReg();
-            addText(new Assign(reg, index.getValue()));
-            addText(new Calculate(reg, reg, new Namespace(2, 1), "sll"));
-            return reg;
-        } else if (index.getType() == 1) {
-            Namespace i = tmpname2reg.get(index.toString());
-            addText(new Calculate(i, i, new Namespace(2, 1), "sll"));
-            return i;
-        } else {
-            Namespace i = rsym2ns(index);
-            if (i.getType() == 1) {
-                Namespace reg = getReg();
-                addText(new Assign(reg, i.getValue()));
+    private void scanFuncDecl(FuncDecl funcDecl) {
+        Func func = funcDecl.getFunc();
+        curfunccodes.add(new LabelMipsCode(funcDecl.getFunc().getName() + ":\n"));
+        blockstack.add(new Block("func"));
+        funcstack.add(func);
+        curLevel++;
+        ArrayList<Var> params = func.getParams();
+        int sz = params.size();
+        for (int i = 0; i < sz; i++) {
+            params.get(i).setAddr(-((sz - i) * 4));
+            params.get(i).setReg(name2reg(params.get(i).toString() + params.get(i).getLevel()));
+            if (params.get(i).getReg() > 0) {
+                addloadstore(new Namespace(params.get(i).getReg(), 0),
+                        null, new Namespace(params.get(i).getAddr(), 1), 0);
+            }
+            addVarSym(params.get(i));
+        }
+        addFuncSym(funcDecl.getFunc());
+    }
+
+    private int name2reg(String name) {
+        for (int reg : globalreg2sym.keySet()) {
+            if (globalreg2sym.get(reg).toString().equals(name)) {
                 return reg;
             }
-            addText(new Calculate(i, i, new Namespace(2, 1), "sll"));
-            return i;
         }
-    }
-
-    Namespace transIndex2reg2(Sym index) {
-        if (index.getType() == 0) {
-            Namespace reg = getReg();
-            addText(new Assign(reg, index.getValue()));
-            return reg;
-        } else if (index.getType() == 1) {
-            Namespace i = tmpname2reg.get(index.toString());
-            return i;
-        } else {
-            Namespace i = lsym2ns(index);
-            if (i.getType() == 1) {
-                Namespace reg = getReg();
-                addloadstore(reg, reg0, new Namespace(i.getValue(), 1), 0);
-                return reg;
-            }
-            return i;
-        }
-    }
-
-    private void addloadstore(Namespace reg1, Namespace reg2, Namespace addr, int type) {
-        if (addr.getType() == 1) {
-            if (addr.getValue() >= stackbase) {
-                if (reg2 != null && reg2.getReg() > 0) {
-                    addText(new Calculate(reg2, reg2, new Namespace(stackbase - addr.getValue(), 1), "+"));
-                    addText(new Calculate(reg2, reg2, new Namespace(29, 0), "+"));
-                    addText(new LoadStore(reg1, reg2, new Namespace(0, 1), type));
-                    return;
-                } else {
-                    addText(new LoadStore(reg1, reg2, addr, type));
-                    return;
-                }
-            }
-            addText(new LoadStore(reg1, reg2, addr, type));
-        } else {
-            if (reg2.getReg() == 0) {
-                addText(new LoadStore(reg1, addr, new Namespace(0, 1), type));
-            } else {
-                addText(new Calculate(addr, addr, reg2, "+"));
-                addText(new LoadStore(reg1, addr, new Namespace(0, 1), type));
-            }
-        }
+        return -1;
     }
 
     private void scanArrayLoadStore(ArrayLoadStore arrayLoadStore) {
@@ -609,51 +709,6 @@ public class IRTranslator {
                     freeReg(indexreg.getReg());
             }
 
-        } else if (arrayLoadStore.getType() == 1) {
-            Sym index1 = arrayLoadStore.getIndex1();
-            Sym index2 = arrayLoadStore.getIndex2();
-            Var array = arrayLoadStore.getArray();
-            Sym rsym = arrayLoadStore.getRsym();
-            Sym tmp1 = arrayLoadStore.getTmp1();
-            Sym tmp2 = arrayLoadStore.getTmp2();
-            Namespace t1 = getReg();
-            Namespace t2 = getReg();
-            Namespace i1 = transIndex2reg2(index1);
-            Namespace i2 = transIndex2reg2(index2);
-            Namespace n2 = rsym2ns(new Sym(array.getN2()));
-            Namespace addr = lsym2ns(new Sym(array));
-            Namespace rreg = rsym2ns(rsym);
-            if (n2.getType() == 1) {
-                n2 = num2reg(n2);
-            }
-            if (rreg.getType() == 1) {
-                Namespace reg = getReg();
-                addText(new Assign(reg, rreg.getValue()));
-                rreg = reg;
-            }
-            addText(new Calculate(t1, i1, n2, "*"));
-            addText(new MTF(t1, "mflo"));
-            addText(new Calculate(t2, t1, i2, "+"));
-            addText(new Calculate(t2, t2, new Namespace(2, 1), "sll"));
-            if (addr.getValue() < 0) {
-                Namespace reg = getReg();
-                addloadstore(reg, reg, addr, 0);
-                addloadstore(reg, reg, addr, 0);
-                addText(new Calculate(reg, reg, t2, "+"));
-                addloadstore(rreg, reg, new Namespace(0, 1), 3);
-                freeReg(reg.getReg());
-                freeReg(rreg.getReg());
-            } else {
-                addloadstore(rreg, t2, addr, 3);
-                if (rreg != null)
-                    freeReg(rreg.getReg());
-            }
-            freeReg(t1.getReg());
-            freeReg(t2.getReg());
-            if (i1.getType() == 0) freeReg(i1.getReg());
-            if (i2.getType() == 0) freeReg(i2.getReg());
-            if (n2.getType() == 0) freeReg(n2.getReg());
-            if (addr.getType() == 0) freeReg(addr.getReg());
         } else if (arrayLoadStore.getType() == 2) {
             Sym index1 = arrayLoadStore.getIndex1();
             Var array = arrayLoadStore.getArray();
@@ -666,12 +721,13 @@ public class IRTranslator {
                     Namespace indexreg = transIndex2reg(index1);
                     addloadstore(rreg, indexreg, raddr, 0);
                     addloadstore(rreg, reg0, laddr, 3);
+                    //tmpreg2sym.put(rreg.getReg(), lsym);
                     freeReg(rreg.getReg());
                 } else {
-                    Namespace rreg = getReg();
+                    //Namespace rreg = getReg();
                     Namespace indexreg = transIndex2reg(index1);
-                    addloadstore(rreg, indexreg, raddr, 0);
-                    tmpname2reg.put(lsym.toString(), rreg);
+                    addloadstore(laddr, indexreg, raddr, 0);
+                    //tmpreg2sym.put(rreg.getReg(), lsym);
                 }
             } else {
                 if (raddr.getType() == 1) {
@@ -684,15 +740,17 @@ public class IRTranslator {
                         addText(new Calculate(reg, reg, indexreg, "+"));
                         addloadstore(rreg, reg, new Namespace(0, 1), 0);
                         addloadstore(rreg, reg0, laddr, 3);
+                        //tmpreg2sym.put(rreg.getReg(), lsym);
                         freeReg(reg.getReg());
+                        freeReg(rreg.getReg());
                     } else {
-                        Namespace rreg = getReg();
+                        //Namespace rreg = getReg();
                         Namespace indexreg = transIndex2reg(index1);
                         Namespace reg = getReg();
                         addloadstore(reg, null, new Namespace(raddr.getValue(), 1), 0);
                         addText(new Calculate(reg, reg, indexreg, "+"));
-                        addloadstore(rreg, reg, new Namespace(0, 1), 0);
-                        tmpname2reg.put(lsym.toString(), rreg);
+                        addloadstore(laddr, reg, new Namespace(0, 1), 0);
+                        //tmpreg2sym.put(rreg.getReg(), lsym);
                         freeReg(reg.getReg());
                     }
                 } else {
@@ -703,58 +761,77 @@ public class IRTranslator {
                         addText(new Calculate(raddr, raddr, indexreg, "+"));
                         addloadstore(rreg, raddr, new Namespace(0, 1), 0);
                         addloadstore(rreg, reg0, laddr, 3);
+                        //tmpreg2sym.put(rreg.getReg(), lsym);
+                        freeReg(rreg.getReg());
                     } else {
-                        Namespace rreg = getReg();
+                        //Namespace rreg = getReg();
                         Namespace indexreg = transIndex2reg(index1);
                         addText(new Calculate(raddr, raddr, indexreg, "+"));
-                        addloadstore(rreg, raddr, new Namespace(0, 1), 0);
-                        tmpname2reg.put(lsym.toString(), rreg);
+                        addloadstore(laddr, raddr, new Namespace(0, 1), 0);
+                        //tmpreg2sym.put(rreg.getReg(), lsym);
                     }
                 }
+            }
+        }
+    }
 
+    private void scanArrayDecl(ArrayDecl arrayDecl) {
+        Var array = (Var) arrayDecl.getSym().getSymbol();
+        if (funcBlocks.get(curFunc).isMain()) {
+            if (arrayDecl.getHasInitVal()) {
+                array.setAddr(fp);
+                addVarSym(array);
+                Namespace addr = new Namespace(fp, 1);
+                for (Sym sym : arrayDecl.getArrayval()) {
+                    if (sym == null) continue;
+                    if (sym.getType() == 0) {
+                        Namespace reg = num2reg(new Namespace(sym.getValue(), 1));
+                        addloadstore(reg, reg0, addr, 3);
+                        fp += 4;
+                        addr = new Namespace(fp, 1);
+                    } else {
+                        Namespace reg = rsym2ns(sym);
+                        addloadstore(reg, reg0, addr, 3);
+                        fp += 4;
+                        addr = new Namespace(fp, 1);
+                    }
+                }
+                fp += arrayDecl.getSpace();
+            } else {
+                array.setAddr(fp);
+                addVarSym(array);
+                Namespace addr = new Namespace(fp, 1);
+                fp += arrayDecl.getSpace();
             }
         } else {
-            Sym index1 = arrayLoadStore.getIndex1();
-            Sym index2 = arrayLoadStore.getIndex2();
-            Var array = arrayLoadStore.getArray();
-            Sym lsym = arrayLoadStore.getLsym();
-            Sym tmp1 = arrayLoadStore.getTmp1();
-            Sym tmp2 = arrayLoadStore.getTmp2();
-            Namespace t1 = getReg();
-            Namespace t2 = getReg();
-            Namespace i1 = transIndex2reg2(index1);
-            Namespace i2 = transIndex2reg2(index2);
-            Namespace n2 = rsym2ns(new Sym(array.getN2()));
-            Namespace addr = lsym2ns(new Sym(array));
-            Namespace lreg = rsym2ns(lsym);
-            if (lreg == null) {
-                lreg = getReg();
-                tmpname2reg.put(lsym.toString(), lreg);
+            if (arrayDecl.getHasInitVal()) {
+                addVarSym(array);
+                int baseaddr = stackaddr + (arrayDecl.getSpace() - 4);
+                array.setAddr(baseaddr);
+                Namespace addr = new Namespace(baseaddr, 1);
+                for (Sym sym : arrayDecl.getArrayval()) {
+                    if (sym == null) continue;
+                    if (sym.getType() == 0) {
+                        Namespace reg = num2reg(new Namespace(sym.getValue(), 1));
+                        addloadstore(reg, reg0, addr, 3);
+                        baseaddr -= 4;
+                        addr = new Namespace(baseaddr, 1);
+                    } else {
+                        Namespace reg = rsym2ns(sym);
+                        addloadstore(reg, reg0, addr, 3);
+                        baseaddr -= 4;
+                        addr = new Namespace(baseaddr, 1);
+                    }
+                }
+                stackaddr += arrayDecl.getSpace();
+            } else {
+                addVarSym(array);
+                int baseaddr = stackaddr + (arrayDecl.getSpace() - 4);
+                array.setAddr(baseaddr);
+                stackaddr += arrayDecl.getSpace();
             }
-            if (lreg.getType() == 1) {
-                Namespace reg = getReg();
-                addText(new Assign(reg, lreg.getValue()));
-                lreg = reg;
-            }
-            if (n2.getType() == 1) {
-                n2 = num2reg(n2);
-            }
-            addText(new Calculate(t1, i1, n2, "*"));
-            addText(new MTF(t1, "mflo"));
-            addText(new Calculate(t2, t1, i2, "+"));
-            addText(new Calculate(t2, t2, new Namespace(2, 1), "sll"));
-            addloadstore(lreg, t2, addr, 0);
-            if (addr.getValue() < 0) {
-                addText(new Calculate(lreg, lreg, t2, "+"));
-                addloadstore(lreg, lreg, new Namespace(0, 1), 0);
-            }
-            freeReg(t1.getReg());
-            freeReg(t2.getReg());
-            if (i1.getType() == 0) freeReg(i1.getReg());
-            if (i2.getType() == 0) freeReg(i2.getReg());
-            if (n2.getType() == 0) freeReg(n2.getReg());
-            if (addr.getType() == 0) freeReg(addr.getReg());
         }
+        addVarSym(array);
     }
 
     private Namespace num2reg(Namespace value) {
@@ -763,138 +840,50 @@ public class IRTranslator {
         return reg;
     }
 
-    private void scanArrayDecl(ArrayDecl arrayDecl) {
-        Var array = (Var) arrayDecl.getSym().getSymbol();
-        if (curLevel == 0) {
-            if (arrayDecl.getHasInitVal()) {
-                array.setAddr(gp);
-                gp += arrayDecl.getSpace();
-                addVarSym(array);
-                addData(new LabelMipsCode(String.format("%s:\n",
-                        arrayDecl.getSym().getSymbol().getName())));
-                for (Sym sym : arrayDecl.getArrayval()) {
-                    if (sym == null) continue;
-                    addData(new LabelMipsCode(String.format(".word %d\n",
-                            sym.getValue())));
-                }
-            } else {
-                array.setAddr(gp);
-                gp += arrayDecl.getSpace();
-                addVarSym(array);
-                addData(new LabelMipsCode(String.format("%s: .space %d\n",
-                        arrayDecl.getSym().getSymbol().getName(), arrayDecl.getSpace())));
-            }
-        } else {
-            if (!infunc) {
-                if (arrayDecl.getHasInitVal()) {
-                    array.setAddr(fp);
-                    addVarSym(array);
-                    Namespace addr = new Namespace(fp, 1);
-                    for (Sym sym : arrayDecl.getArrayval()) {
-                        if (sym == null) continue;
-                        if (sym.getType() == 0) {
-                            Namespace reg = num2reg(new Namespace(sym.getValue(), 1));
-                            addloadstore(reg, reg0, addr, 3);
-                            fp += 4;
-                            addr = new Namespace(fp, 1);
-                        } else {
-                            Namespace reg = rsym2ns(sym);
-                            addloadstore(reg, reg0, addr, 3);
-                            fp += 4;
-                            addr = new Namespace(fp, 1);
-                        }
-                    }
-                    fp += arrayDecl.getSpace();
-                } else {
-                    array.setAddr(fp);
-                    addVarSym(array);
-                    Namespace addr = new Namespace(fp, 1);
-                    fp += arrayDecl.getSpace();
-                }
-            } else {
-                if (arrayDecl.getHasInitVal()) {
-                    addVarSym(array);
-                    int baseaddr = stackaddr + (arrayDecl.getSpace() - 4);
-                    array.setAddr(baseaddr);
-                    Namespace addr = new Namespace(baseaddr, 1);
-                    for (Sym sym : arrayDecl.getArrayval()) {
-                        if (sym == null) continue;
-                        if (sym.getType() == 0) {
-                            Namespace reg = num2reg(new Namespace(sym.getValue(), 1));
-                            addloadstore(reg, reg0, addr, 3);
-                            baseaddr -= 4;
-                            addr = new Namespace(baseaddr, 1);
-                        } else {
-                            Namespace reg = rsym2ns(sym);
-                            addloadstore(reg, reg0, addr, 3);
-                            baseaddr -= 4;
-                            addr = new Namespace(baseaddr, 1);
-                        }
-                    }
-                    stackaddr += arrayDecl.getSpace();
-                } else {
-                    addVarSym(array);
-                    int baseaddr = stackaddr + (arrayDecl.getSpace() - 4);
-                    array.setAddr(baseaddr);
-                    stackaddr += arrayDecl.getSpace();
-                }
-            }
-        }
-        addVarSym(array);
-    }
-
-    private void scanFuncDecl(FuncDecl funcDecl) {
-        Func func = funcDecl.getFunc();
-        blockstack.add(new Block("func"));
-        funcstack.add(func);
-        curLevel++;
-        ArrayList<Var> params = func.getParams();
-        int sz = params.size();
-        for (int i = 0; i < sz; i++) {
-            params.get(i).setAddr(-((sz - i) * 4));
-            addVarSym(params.get(i));
-        }
-        funcDecl.getFunc().setAddr(textaddr + texts.size() * 4);
-        addFuncSym(funcDecl.getFunc());
-        funcodes.add(new LabelMipsCode(funcDecl.getFunc().getName() + ":\n"));
-    }
-
     private void scanDecl(Decl decl) {
         Var var = (Var) decl.getSym().getSymbol();
-        if (curLevel == 0) {
-            var.setAddr(gp);
-            gp += 4;
+        if (funcBlocks.get(curFunc).isMain()) {
+            var.setAddr(fp);
             addVarSym(var);
-            addData(new LabelMipsCode(String.format("%s: .word %d\n",
-                    decl.getSym().getSymbol().getName(), decl.getRsym().getValue())));
-        } else {
-            if (!infunc) {
-                var.setAddr(fp);
-                addVarSym(var);
-                Namespace rns = rsym2ns(decl.getRsym());
-                if (rns != null && rns.getType() == 1) {
-                    int value = rns.getValue();
-                    rns = getReg();
-                    addText(new Assign(rns, value));
+            Namespace rns = rsym2ns(decl.getRsym());
+            if (rns != null && rns.getType() == 1) {
+                int value = rns.getValue();
+                if (var.getReg() > 0) {
+                    addText(new Assign(new Namespace(var.getReg(), 0), value));
+                    return;
                 }
-                addText(new LoadStore(rns, reg0, new Namespace(fp, 1), 3));
-                if (rns != null)
-                    freeReg(rns.getReg());
-                fp += 4;
-            } else {
-                var.setAddr(stackaddr);
-                addVarSym(var);
-                Namespace rns = rsym2ns(decl.getRsym());
-                if (rns != null && rns.getType() == 1) {
-                    int value = rns.getValue();
-                    rns = getReg();
-                    addText(new Assign(rns, value));
-                }
-                addloadstore(rns, reg0, new Namespace(stackaddr, 1), 3);
-                if (rns != null)
-                    freeReg(rns.getReg());
-                stackaddr += 4;
+                rns = getReg();
+                addText(new Assign(rns, value));
             }
+            if (var.getReg() > 0) {
+                addText(new Assign(new Namespace(var.getReg(), 0), rns));
+                return;
+            }
+            addText(new LoadStore(rns, reg0, new Namespace(fp, 1), 3));
+            if (rns != null)
+                freeReg(rns.getReg());
+            fp += 4;
+        } else {
+            var.setAddr(stackaddr);
+            addVarSym(var);
+            Namespace rns = rsym2ns(decl.getRsym());
+            if (rns != null && rns.getType() == 1) {
+                int value = rns.getValue();
+                if (var.getReg() > 0) {
+                    addText(new Assign(new Namespace(var.getReg(), 0), value));
+                    return;
+                }
+                rns = getReg();
+                addText(new Assign(rns, value));
+            }
+            if (var.getReg() > 0) {
+                addText(new Assign(new Namespace(var.getReg(), 0), rns));
+                return;
+            }
+            addloadstore(rns, reg0, new Namespace(stackaddr, 1), 3);
+            if (rns != null)
+                freeReg(rns.getReg());
+            stackaddr += 4;
         }
         addVarSym(var);
     }
@@ -902,9 +891,6 @@ public class IRTranslator {
     private void scanLabel(Label label) {
         String[] names = label.getName().split("_");
         String ident = names[0];
-        if (names[1].equals("main")) {
-            main = true;
-        }
         if (label.getName().length() > 12 && label.getName().substring(0, 12).equals("mainfunc_ret")) {
             addText(new LabelMipsCode("text_end" + label.getName().substring(12) + ": \n"));
             addText(new Syscall(3));
@@ -912,21 +898,19 @@ public class IRTranslator {
         }
         if (names[1].equals("func")) {
             if (names[names.length - 1].equals("end")) {
-                if (!(funcodes.get(funcodes.size() - 1) instanceof BrJump)) {
-                    funcodes.add(new BrJump(new Namespace(31, 0), "jr"));
+                if (!(curfunccodes.get(curfunccodes.size() - 1) instanceof BrJump)) {
+                    curfunccodes.add(new BrJump(new Namespace(31, 0), "jr"));
                 }
                 blockstack.remove(curLevel--);
                 funcstack.remove(funcstack.size() - 1);
-                tmpname2reg = new HashMap<>();
-                infunc = false;
-                funcodes.add(new LabelMipsCode(label.toString()));
+                tmpreg2sym = new HashMap<>();
+                curfunccodes.add(new LabelMipsCode(label.toString()));
                 stackaddr = stackbase;
             } else {
-                funcodes.add(new LabelMipsCode(label.toString()));
+                curfunccodes.add(new LabelMipsCode(label.toString()));
                 if (stackaddr > stackbase) {
                     addText(new StackManage(5, stackaddr - stackbase));
                 }
-                infunc = true;
             }
             return;
         }
@@ -941,35 +925,43 @@ public class IRTranslator {
             } else if (type.equals("end")) {
                 blockstack.remove(blockstack.size() - 1);
                 curLevel--;
-                tmpname2reg = new HashMap<>();
+                tmpreg2sym = new HashMap<>();
             }
         }
     }
 
-    private void addMipsCode(MipsCode mipsCode) {
-        mipsCodes.add(mipsCode);
-    }
-
-    private void addData(MipsCode mipsCode) {
-        datas.add(mipsCode);
-    }
-
-    private void addText(MipsCode mipsCode) {
-        if (main == false) {
-            funcodes.add(mipsCode);
-            return;
+    private Var findVarInAllTable(String name) {
+        for (int i = curLevel; i >= 0; i--) {
+            Var ret = (Var) blockstack.get(i).findVar1(name);
+            if (ret != null) return ret;
         }
-        texts.add(mipsCode);
+        return null;
+    }
+
+    void addFuncSym(Func func) {
+        blockstack.get(0).addSym(func);
+    }
+
+    private Func findFuncInAllTable(String name) {
+        Func ret = (Func) blockstack.get(0).findFunc(name);
+        if (ret != null) return ret;
+        return null;
     }
 
     public void setMipsout() {
-        for (MipsCode mipsCode : datas) {
+        for (MipsCode mipsCode : datacodes) {
             addMipsCode(mipsCode);
         }
-        for (MipsCode mipsCode : texts) {
-            addMipsCode(mipsCode);
+        ArrayList<MipsCode> funccodes = new ArrayList<>();
+        for (FuncBlock funcBlock : funcBlocks) {
+            if (funcBlock.isMain()) {
+                mipsCodes.add(new LabelMipsCode(".text\n"));
+                mipsCodes.addAll(funcBlock.getFuncmipscodes());
+            } else {
+                funccodes.addAll(funcBlock.getFuncmipscodes());
+            }
         }
-        for (MipsCode mipsCode : funcodes) {
+        for (MipsCode mipsCode : funccodes) {
             addMipsCode(mipsCode);
         }
         StringBuilder res = new StringBuilder("");
@@ -979,55 +971,58 @@ public class IRTranslator {
         mipsout = res.toString();
     }
 
-    void addVarSym(Var var) {
-        blockstack.get(curLevel).addSym(var);
-    }
-
-    void addFuncSym(Func func) {
-        blockstack.get(0).addSym(func);
-    }
-
-    private Namespace getReg() {
-        for (int i = 0; i < 32; i++) {
-            if (i <= 4 || (i >= 29 && i <= 31)) continue;
-            if (regMap.get(i)) {
-                regMap.set(i, false);
-                return new Namespace(i, 0);
-            }
-        }
-        for (int i = 5; i <= 28; i++) {
-            if (!tmpname2reg.values().contains(new Namespace(i, 0))) freeReg(i);
-        }
-        for (int i = 0; i < 32; i++) {
-            if (i <= 4 || i >= 29) continue;
-            if (regMap.get(i)) {
-                regMap.set(i, false);
-                return new Namespace(i, 0);
-            }
-        }
-        return new Namespace(27, 0);
-    }
-
-    private void freeReg(int reg) {
-        if (tmpname2reg.containsValue(reg)) return;
-        regMap.set(reg, true);
-    }
 
     public String getMipsout() {
         return mipsout;
     }
 
-    private Func findFuncInAllTable(String name) {
-        Func ret = (Func) blockstack.get(0).findFunc(name);
-        if (ret != null) return ret;
-        return null;
+    void transFunc() {
+        resetTmpRegpool();
+        resetGlobalRegpool();
+        curfunccodes = new ArrayList<>();
+        FuncBlock funcBlock = funcBlocks.get(curFunc);
+        ArrayList<BasicBlock> basicBlocks = funcBlock.getBasicBlocks();
+        globalreg2sym = funcBlock.getGlobalReg2sym();
+        for (int i = 0; i < basicBlocks.size(); i++) {
+            transbasicblock(basicBlocks.get(i));
+        }
+        funcBlocks.get(curFunc).setFuncmipscodes(curfunccodes);
     }
 
-    private Var findVarInAllTable(String name) {
-        for (int i = curLevel; i >= 0; i--) {
-            Var ret = (Var) blockstack.get(i).findVar(name);
-            if (ret != null) return ret;
+    private void transbasicblock(BasicBlock basicBlock) {
+        ArrayList<IRCode> ircodes = basicBlock.getIrCodes();
+        for (int i = 0; i < ircodes.size(); i++) {
+            //System.out.println(i);
+            if (ircodes.get(i) instanceof Label) scanLabel((Label) ircodes.get(i));
+            else if (ircodes.get(i) instanceof Decl) scanDecl((Decl) ircodes.get(i));
+            else if (ircodes.get(i) instanceof ArrayDecl) scanArrayDecl((ArrayDecl) ircodes.get(i));
+            else if (ircodes.get(i) instanceof ArrayLoadStore) scanArrayLoadStore((ArrayLoadStore) ircodes.get(i));
+            else if (ircodes.get(i) instanceof FuncDecl) scanFuncDecl((FuncDecl) ircodes.get(i));
+            else if (ircodes.get(i) instanceof FuncParam) scanFuncParam((FuncParam) ircodes.get(i));
+            else if (ircodes.get(i) instanceof FuncRet) scanFuncRet((FuncRet) ircodes.get(i));
+            else if (ircodes.get(i) instanceof FuncCall) scanFuncCall((FuncCall) ircodes.get(i));
+            else if (ircodes.get(i) instanceof Jump) scanJump((Jump) ircodes.get(i));
+            else if (ircodes.get(i) instanceof CondBranch) scanCondBranch((CondBranch) ircodes.get(i));
+            else if (ircodes.get(i) instanceof Printf) scanPrintf((Printf) ircodes.get(i));
+            else if (ircodes.get(i) instanceof Exp) scanExp((Exp) ircodes.get(i));
+            //System.out.println(ircodes.get(i));
+            //释放无用的临时寄存器
+            HashSet<Sym> killls = basicBlock.getKillSymls(i);
+            HashSet<Integer> regs = new HashSet<>(tmpreg2sym.keySet());
+            for (int reg : regs) {
+                if (killls.contains(tmpreg2sym.get(reg))) {
+                    tmpreg2sym.remove(reg);
+                    regpool.put(reg, false);
+                }
+                if (!tmpreg2sym.containsKey(reg)) {
+                    regpool.put(reg, false);
+                }
+            }
+            for (int reg : tmpregs) {
+                if (!tmpreg2sym.containsKey(reg)) {
+                    regpool.put(reg, false);
+                }
+            }
         }
-        return null;
     }
 }

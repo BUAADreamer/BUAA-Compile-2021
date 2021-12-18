@@ -33,4 +33,8 @@ public class CondBranch extends IRCode {
     public Label getLabel() {
         return label;
     }
+
+    public void setLabel(Label label) {
+        this.label = label;
+    }
 }

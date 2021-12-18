@@ -39,6 +39,12 @@ public class Calculate extends MipsCode {
                     return "sltiu";
                 case "sll":
                     return "sll";
+                case ">>":
+                    return "sra";
+                case ">>>":
+                    return "srl";
+                case "^":
+                    return "xori";
                 default:
                     return op;
             }
@@ -49,10 +55,12 @@ public class Calculate extends MipsCode {
                 return "sub";
             } else if (op.equals("/") || op.equals("%")) {
                 return "div";
-            } else if (op.equals("*")) {
+            } else if (op.equals("*") || op.equals("**")) {
                 return "mult";
             } else if (op.equals("slti") || op.equals("sltiu")) {
                 return "slt";
+            } else if (op.equals("^")) {
+                return "xor";
             }
         }
         return "";

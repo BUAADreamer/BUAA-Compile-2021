@@ -3,6 +3,8 @@ package frontend.stdir;
 import frontend.irgen.symtable.SymTable;
 import frontend.irgen.symtable.Var;
 
+import java.util.ArrayList;
+
 public class ArrayLoadStore extends IRCode {
     Sym lsym;
     Sym rsym;
@@ -71,6 +73,22 @@ public class ArrayLoadStore extends IRCode {
         return res.toString();
     }
 
+    public ArrayList<IRCode> trans() {
+        ArrayList<IRCode> ans = new ArrayList<>();
+        if (type == 1 || type == 3) {
+            ans.add(new Exp("*", tmp1, index1, new Sym(array.getN2())));
+            ans.add(new Exp("+", tmp2, index2, tmp1));
+            if (type == 1) {
+                type = 0;
+                index1 = tmp2;
+            } else if (type == 3) {
+                type = 2;
+                index1 = tmp2;
+            }
+        }
+        return ans;
+    }
+
     public int getType() {
         return type;
     }
@@ -101,5 +119,17 @@ public class ArrayLoadStore extends IRCode {
 
     public Var getArray() {
         return array;
+    }
+
+    public Sym getArraySym() {
+        return new Sym(array, index1);
+    }
+
+    public Sym getArraySym1() {
+        return new Sym(array.toString(), true);
+    }
+
+    public Sym getArraySym2() {
+        return new Sym(array.toString(), index1.toString());
     }
 }

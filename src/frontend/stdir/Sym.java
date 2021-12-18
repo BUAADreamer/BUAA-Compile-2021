@@ -4,6 +4,7 @@ import frontend.irgen.symtable.SymTable;
 import frontend.irgen.symtable.Var;
 
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class Sym {
     private int value;
@@ -54,6 +55,17 @@ public class Sym {
         this.index = index;
     }
 
+    public Sym(String name, boolean flag) {
+        this.type = 5;
+        this.name = name;
+    }
+
+    public Sym(String name, String index) {
+        this.type = 6;
+        this.name = name + "[" + index + "]";
+    }
+
+
     @Override
     public String toString() {
         if (type == 0) return String.valueOf(value);
@@ -61,6 +73,8 @@ public class Sym {
         else if (type == 2) return symbol.toString();
         else if (type == 3) return "&" + arrayname.toString();
         else if (type == 4) return String.format("&%s[%s]", arrayname, index);
+        else if (type == 5) return name;
+        else if (type == 6) return name;
         return "";
     }
 
@@ -104,6 +118,32 @@ public class Sym {
         return arrayname;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Sym sym = (Sym) o;
+        return value == sym.value && type == sym.type && Objects.equals(name, sym.name) && Objects.equals(symbol, sym.symbol) && Objects.equals(params, sym.params) && Objects.equals(arrayname, sym.arrayname) && Objects.equals(index, sym.index) && toString().equals(sym.toString());
+    }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(value, type, name, symbol, params, arrayname, index, toString());
+    }
 
+    /**
+     * @param sym
+     * @return
+     */
+    public static Sym isVar(Sym sym) {
+        if (sym == null) return null;
+        String s = sym.toString();
+        if (s.length() > 0 && (s.charAt(0) == 't' || s.charAt(0) == '%' || s.charAt(0) == '@')) {
+            return sym;
+        }
+        if (s.length() > 0 && (s.charAt(0) == '&')) {
+            return new Sym(sym.getArrayname().toString(), true);
+        }
+        return null;
+    }
 }

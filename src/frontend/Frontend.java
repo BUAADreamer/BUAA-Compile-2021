@@ -1,6 +1,8 @@
 package frontend;
 
 import frontend.irgen.IRGenerater;
+import frontend.irgen.Optimizer;
+import frontend.irgen.optimize.CompileUnit;
 import frontend.preprocess.Lexer;
 import frontend.preprocess.Parser;
 import frontend.preprocess.Visitor;
@@ -11,6 +13,7 @@ import java.util.ArrayList;
 
 public class Frontend {
     private ArrayList<IRCode> irCodes;
+    private CompileUnit compileUnit;
 
     public Frontend(int level) throws IOException {
         /**
@@ -43,11 +46,28 @@ public class Frontend {
         //iOtool.output("ircode", translater.getIROutput());
         IRGenerater irGenerater = new IRGenerater(parser.getAst());
         this.irCodes = irGenerater.getIrcodes();
-        iOtool.output("ircode.txt", irGenerater.getIroutput());
+        outputIrcodes("ircode0.txt");
+//        iOtool.output("ircode.txt", irGenerater.getIroutput());
         if (level <= 4) return;
+        Optimizer optimizer = new Optimizer(this.irCodes, irGenerater.getRegNum());
+        irCodes = optimizer.getIrCodes();
+        outputIrcodes("ircode.txt");
+        compileUnit = optimizer.getCompileUnit();
     }
 
     public ArrayList<IRCode> getIrCodes() {
         return irCodes;
+    }
+
+    void outputIrcodes(String name) {
+        StringBuilder sb = new StringBuilder("");
+        for (IRCode irCode : irCodes) {
+            sb.append(irCode.toString());
+        }
+        IOtool.output(name, sb.toString());
+    }
+
+    public CompileUnit getCompileUnit() {
+        return compileUnit;
     }
 }
