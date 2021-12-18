@@ -21,6 +21,7 @@ public class Compiler {
          * backlevel:
          *       0-->backend close
          *       1-->backend open
+         *       2-->optimizer version backend
          */
         int backlevel = 2;
         Backend backend = new Backend(frontend.getIrCodes(), backlevel, frontend.getCompileUnit());

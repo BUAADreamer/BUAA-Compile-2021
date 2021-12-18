@@ -339,8 +339,6 @@ public class FuncBlock {
                 }
             }
         }
-//        System.out.println(sym2refcnt);
-//        System.out.println(varconflictmap);
         while (varconflictmap.size() > 0) {
             //HashMap<Sym, HashSet<Sym>> newvarconflictmap = new HashMap<>();
             Sym chooseSym = null;
@@ -369,6 +367,9 @@ public class FuncBlock {
             }
             varconflictmap.remove(chooseSym);
         }
+        System.out.println(sym2refcnt);
+        System.out.println(varconflictmap);
+        System.out.println(allocateSyms);
     }
 
     public HashMap<Integer, Sym> getGlobalReg2sym() {

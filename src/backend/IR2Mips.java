@@ -32,9 +32,9 @@ public class IR2Mips {
     private int stackaddr = 0x7fff0000;
     private final int stackbase = 0x7fff0000;
     private ArrayList<Func> funcstack = new ArrayList<>();
-    private HashMap<Integer, Boolean> regpool = new HashMap<>(); //3-15 24-28
+    private HashMap<Integer, Boolean> regpool = new HashMap<>();
     private HashMap<Integer, Sym> globalreg2sym = new HashMap<>(); //16-23
-    private HashMap<Integer, Sym> tmpreg2sym = new HashMap<>();
+    private HashMap<Integer, Sym> tmpreg2sym = new HashMap<>(); //3-15 24-28
     private String mipsout;
 
     public IR2Mips(CompileUnit compileUnit) {
