@@ -22,6 +22,18 @@ public class Assign extends MipsCode {
         }
     }
 
+    public Namespace getSym1() {
+        return sym1;
+    }
+
+    public Namespace getSym2() {
+        return sym2;
+    }
+
+    public int getValue() {
+        return value;
+    }
+
     @Override
     public String toString() {
         if (type == 0) {
@@ -30,5 +42,9 @@ public class Assign extends MipsCode {
             return String.format("move %s %s\n", sym1, sym2);
         }
         return "";
+    }
+
+    public int getType() {
+        return type;
     }
 }

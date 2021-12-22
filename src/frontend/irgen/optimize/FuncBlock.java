@@ -1,5 +1,6 @@
 package frontend.irgen.optimize;
 
+import backend.MIPSOptimizer;
 import backend.mips.MipsCode;
 import frontend.stdir.*;
 
@@ -339,6 +340,7 @@ public class FuncBlock {
                 }
             }
         }
+        HashMap<Sym, HashSet<Sym>> oldvarconflictmap = new HashMap<>(varconflictmap);
         while (varconflictmap.size() > 0) {
             //HashMap<Sym, HashSet<Sym>> newvarconflictmap = new HashMap<>();
             Sym chooseSym = null;
@@ -367,17 +369,32 @@ public class FuncBlock {
             }
             varconflictmap.remove(chooseSym);
         }
-        System.out.println(sym2refcnt);
-        System.out.println(varconflictmap);
-        System.out.println(allocateSyms);
+        HashMap<Integer, Sym> ans = new HashMap<>();
+        int color = 0;
+        for (int i = allocateSyms.size() - 1; i >= 0; i--) {
+            ArrayList<Integer> forbidRegs = new ArrayList<>();
+            for (int reg : ans.keySet()) {
+                if (oldvarconflictmap.get(allocateSyms.get(i)).contains(ans.get(reg))) {
+                    forbidRegs.add(reg);
+                }
+            }
+            for (int j = 16; j <= 23; j++) {
+                if (forbidRegs.contains(j)) continue;
+                ans.put(j, allocateSyms.get(i));
+                break;
+            }
+        }
+//        System.out.println(sym2refcnt);
+//        System.out.println(varconflictmap);
+//        System.out.println(allocateSyms);
+//        System.out.println(ans);
+        globalReg2Sym = ans;
     }
 
+    HashMap<Integer, Sym> globalReg2Sym = new HashMap<>();
+
     public HashMap<Integer, Sym> getGlobalReg2sym() {
-        HashMap<Integer, Sym> ans = new HashMap<>();
-        for (int i = 0; i < allocateSyms.size(); i++) {
-            ans.put(16 + i, allocateSyms.get(i));
-        }
-        return ans;
+        return globalReg2Sym;
     }
 
     public ArrayList<IRCode> getIrCodes() {
@@ -400,7 +417,8 @@ public class FuncBlock {
     }
 
     public void setFuncmipscodes(ArrayList<MipsCode> funcmipscodes) {
-        this.funcmipscodes = funcmipscodes;
+        MIPSOptimizer mipsOptimizer = new MIPSOptimizer(funcmipscodes);
+        this.funcmipscodes = mipsOptimizer.getMipsCodes();
     }
 
     public ArrayList<MipsCode> getFuncmipscodes() {

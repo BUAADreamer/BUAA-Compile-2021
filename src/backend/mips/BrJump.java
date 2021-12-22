@@ -30,4 +30,12 @@ public class BrJump extends MipsCode {
             return String.format("%s %s %s %s\n", jbcode, reg1, reg2, label);
         }
     }
+
+    public Namespace getReg1() {
+        return reg1;
+    }
+
+    public Namespace getReg2() {
+        return reg2;
+    }
 }

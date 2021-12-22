@@ -82,4 +82,32 @@ public class LoadStore extends MipsCode {
         res.append("\n");
         return res.toString();
     }
+
+    public Namespace getReg1() {
+        return reg1;
+    }
+
+    public Namespace getReg2() {
+        return reg2;
+    }
+
+    public Namespace getOffset() {
+        return offset;
+    }
+
+    public int getType() {
+        return type;
+    }
+
+    public Namespace getLabel() {
+        return label;
+    }
+
+    public int getBase() {
+        return base;
+    }
+
+    public boolean isload() {
+        return type == 0 || type == 1 || type == 2 || type == 6;
+    }
 }

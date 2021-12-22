@@ -40,4 +40,16 @@ public class StackManage extends MipsCode {
         }
         return null;
     }
+
+    public Namespace getReg() {
+        return reg;
+    }
+
+    public int getType() {
+        return type;
+    }
+
+    public int getOffset() {
+        return offset;
+    }
 }

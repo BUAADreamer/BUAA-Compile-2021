@@ -14,5 +14,16 @@ public class MTF extends MipsCode {
         return String.format("%s %s\n", type, reg);
     }
 
+    public Namespace getReg() {
+        return reg;
+    }
 
+    public String getType() {
+        return type;
+    }
+
+    public int getTransType() {
+        if (type.equals("mthi") || type.equals("mtlo")) return 0;
+        else return 1;
+    }
 }

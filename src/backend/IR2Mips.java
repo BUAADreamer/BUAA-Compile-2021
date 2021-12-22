@@ -265,6 +265,7 @@ public class IR2Mips {
     }
 
     private void freeReg(int reg) {
+        if (reg >= 16 && reg <= 23) return;
         regpool.put(reg, false);
     }
 
@@ -305,6 +306,9 @@ public class IR2Mips {
         } else {
             Var var = findVarInAllTable(sym.toString().substring(1));
             if (var == null) return null;
+            if (var.getReg() > 0) {
+                return new Namespace(var.getReg(), 0);
+            }
             int addr = var.getAddr();
             return new Namespace(addr, 1);
         }
@@ -454,6 +458,15 @@ public class IR2Mips {
         return null;
     }
 
+    Namespace globalSym2reg(Sym sym) {
+        for (int reg : globalreg2sym.keySet()) {
+            if (globalreg2sym.get(reg).equals(sym)) {
+                return new Namespace(reg, 0);
+            }
+        }
+        return null;
+    }
+
     ArrayList<Namespace> getUsingRegs() {
         ArrayList<Namespace> regs = new ArrayList<>();
         for (int reg : regpool.keySet()) {
@@ -479,6 +492,11 @@ public class IR2Mips {
             if (i.getType() == 1) {
                 Namespace reg = getReg();
                 addText(new Assign(reg, i.getValue()));
+                return reg;
+            }
+            if (i.getReg() >= 16 && i.getReg() <= 23) {
+                Namespace reg = getReg();
+                addText(new Calculate(reg, i, new Namespace(2, 1), "sll"));
                 return reg;
             }
             addText(new Calculate(i, i, new Namespace(2, 1), "sll"));
@@ -661,7 +679,7 @@ public class IR2Mips {
         int sz = params.size();
         for (int i = 0; i < sz; i++) {
             params.get(i).setAddr(-((sz - i) * 4));
-            params.get(i).setReg(name2reg(params.get(i).toString() + params.get(i).getLevel()));
+            params.get(i).setReg(name2reg(params.get(i).toString()));
             if (params.get(i).getReg() > 0) {
                 addloadstore(new Namespace(params.get(i).getReg(), 0),
                         null, new Namespace(params.get(i).getAddr(), 1), 0);
@@ -840,10 +858,14 @@ public class IR2Mips {
         return reg;
     }
 
+
     private void scanDecl(Decl decl) {
         Var var = (Var) decl.getSym().getSymbol();
         if (funcBlocks.get(curFunc).isMain()) {
             var.setAddr(fp);
+            if (globalreg2sym.containsValue(decl.getSym())) {
+                var.setReg(globalSym2reg(decl.getSym()).getReg());
+            }
             addVarSym(var);
             Namespace rns = rsym2ns(decl.getRsym());
             if (rns != null && rns.getType() == 1) {
@@ -865,6 +887,9 @@ public class IR2Mips {
             fp += 4;
         } else {
             var.setAddr(stackaddr);
+            if (globalreg2sym.containsValue(decl.getSym())) {
+                var.setReg(globalSym2reg(decl.getSym()).getReg());
+            }
             addVarSym(var);
             Namespace rns = rsym2ns(decl.getRsym());
             if (rns != null && rns.getType() == 1) {
@@ -885,7 +910,7 @@ public class IR2Mips {
                 freeReg(rns.getReg());
             stackaddr += 4;
         }
-        addVarSym(var);
+        //addVarSym(var);
     }
 
     private void scanLabel(Label label) {
@@ -983,6 +1008,9 @@ public class IR2Mips {
         FuncBlock funcBlock = funcBlocks.get(curFunc);
         ArrayList<BasicBlock> basicBlocks = funcBlock.getBasicBlocks();
         globalreg2sym = funcBlock.getGlobalReg2sym();
+        for (int reg : globalreg2sym.keySet()) {
+            regpool.put(reg, true);
+        }
         for (int i = 0; i < basicBlocks.size(); i++) {
             transbasicblock(basicBlocks.get(i));
         }

@@ -22,6 +22,7 @@ public class Calculate extends MipsCode {
         if (this.reg3 != null && this.reg3.getType() == 1) {
             this.type = 0;
             this.value = this.reg3;
+            this.reg3 = null;
         }
         this.op = transop(op);
     }
@@ -76,5 +77,29 @@ public class Calculate extends MipsCode {
         } else {
             return String.format("%s %s %s %s\n", op, reg1, reg2, reg3);
         }
+    }
+
+    public Namespace getReg1() {
+        return reg1;
+    }
+
+    public Namespace getReg2() {
+        return reg2;
+    }
+
+    public Namespace getReg3() {
+        return reg3;
+    }
+
+    public Namespace getValue() {
+        return value;
+    }
+
+    public String getOp() {
+        return op;
+    }
+
+    public int getType() {
+        return type;
     }
 }

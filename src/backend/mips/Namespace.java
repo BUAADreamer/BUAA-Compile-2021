@@ -1,5 +1,7 @@
 package backend.mips;
 
+import java.util.Objects;
+
 public class Namespace {
     int type; //0 reg 1 num 2 label
     int reg;
@@ -53,5 +55,18 @@ public class Namespace {
 
     public String getLabel() {
         return label;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Namespace namespace = (Namespace) o;
+        return type == namespace.type && reg == namespace.reg && value == namespace.value && Objects.equals(label, namespace.label);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(type, reg, value, label);
     }
 }

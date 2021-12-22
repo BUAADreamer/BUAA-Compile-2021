@@ -1,87 +1,85 @@
-const int zhenghw = 100;
-const int ID = 19373339;
-const int abc123 = 1, abc124 = 2, abc125 = +3;
-int a;
-int b,c,d,f,g;
-int AA;
-int e = 66;
-const int a3[2][2] = {{1,2},{3,4}};
-const int h3 = 6;
-int b3,c3,d3;
-int e3[4],f3[3],ii3[2][2] = {{9,8},{7,6}};
-int g3[2] = {1,2};
-int funcAA(int x[], int y[]) {
-	int tempp;
-	tempp = x[0] + y[0];
-	return tempp;
-}
-int func1 (int paramA) {
-	int declInBlock;
-	int temp = 2;
-	declInBlock = abc123;
-	declInBlock = +3;
-	if (e) temp = 1;
-		else temp = 2;
-	if (e == 66) temp = 3;
-		else temp = 4;
-	if (e != abc123) temp = 5;
-		else temp=6;
-	if (e > 1) temp = 7;
-	if (e + 4 < 80) temp = 8;
-	if (e <= 90) temp = 9;
-	if (e >= 100) temp = 10;
-	if (e * 2 == 140) temp = 11;
-	if (e / 2 == 33) temp = 12;
-	if (e % abc124 == 1) temp = 13;
-	if (!(0 + 1)) temp = 14;
-	while (e - 1 >= 0) {
-		int bbb = e - 1;
-		e = bbb;
-		break;
-	} 
-	while (1 == 0) continue;
-	return (-temp);
+const int a0 = 1;
+const int b0 = 2, c0 = 3;
+int a1 = 0, b1 = 0;
+int c1 = 0;
+
+const int s1[3] = {1,2,3};
+const int s2[2][2] = {{1,2}, {3,4}};
+int s3[3] = {1,2,3};
+int s4[2][2] = {{1,2}, {3,4}};
+
+int dealSet0(int s1[], int s2[][2]) {
+    int i = 0, sum = 0;
+    while (i<2) {
+        sum = sum + s1[i] + s2[i][0] + s2[i][1];
+        i = i + 1;
+    }
+    return sum;
 }
 
-void func2 () {
-	;
-	return;
-}
-
-int func3 (int xxx, int yyy) {
-	{
+int getnumber() {
+    int instantA,instantB,instantC;
+    instantA = 1 + a0 + (b0 + c0);
+    instantB = instantA * instantA / instantA % b0;
+    instantB = instantA - (instantB + c0);
+	if (b1<a1==a1<a1!=b1>b1!=a1>a1==b1<=b1==b1>=b1) {
+		instantC = 1;
 	}
-	return (4);
+    printf("A = %d\n", instantA);
+    printf("B = %d\n", instantB);
+    printf("C = %d\n", instantC);
+    return 1;
 }
 
-int func4 () {
-	return 1;
+int addself(int a) {
+    return a+a;
+}
+
+int multself(int a) {
+    return a*a;
+}
+
+void none(){
+    return;
+}
+
+void minus(int a, int b) {
 }
 
 int main() {
-	a = +-zhenghw;
-	b = abc123 + abc124 + abc124;
-	c = abc123 + abc124*abc125;
-	d = func3(abc123, 1);
-	f = func1(abc124);
-	g= func4();
-	b3 = a3[0][1];
-	c3 = a3[1][0];
-	d3 = a3[1][1];
-	int temp3,inn;
-	int	j3[2][3] = {{ii3[0][0],2,ii3[0][1]},{4,ii3[1][0],ii3[1][1]}};
-	temp3 = funcAA(ii3[0], j3[1]);
-	func2();
-	inn = getint();
-	printf("19373339");
-	printf("\n");
-	printf("%d\n",b3);
-	printf("%d\n",c3);
-	printf("%d\n",d3);
-	printf("%d\n",temp3);
-	printf("%d\n",g3[3/3]);
-	printf("123456\n");
-	printf("123456\n");
-	printf("123456\n");
+    int value;
+    int i = 0, cycle;
+    ;
+    {}
+    printf("19231007\n");
+    printf("input recurrent cycle:\n");
+    cycle = getint();
+    printf("cycle is: %d\n", cycle);
+
+    printf("input initial value:\n");
+    value = getint();
+    printf("initial value is: %d\n", value);
+
+    if (!0) {
+        printf("your input is good\n");
+        while (i<cycle) {
+            value = addself(value);
+            value = multself(value);
+            i = i + 1;
+            continue;
+        }
+    }
+    else {
+        printf("your input is zero\n");
+        if (cycle == 0) {
+        }
+    }
+
+    while(1){
+        value = value - getnumber() - dealSet0(s3, s4);
+        printf("final value is: %d\n", value);
+        break;
+    }
+	
 	return 0;
 }
