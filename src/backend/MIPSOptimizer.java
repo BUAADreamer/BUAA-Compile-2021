@@ -17,17 +17,27 @@ public class MIPSOptimizer {
     }
 
     void deleteCodes() {
-        ArrayList<MipsCode> newmips = new ArrayList<>();
-        for (int i = 0; i < mipsCodes.size(); i++) {
-            Calculate calculate1 = judgeWhileIMore(i);
-            if (calculate1 != null) {
-                newmips.add(calculate1);
-                i += 2;
-                continue;
+        while (true) {
+            ArrayList<MipsCode> lastmips = new ArrayList<>(mipsCodes);
+            ArrayList<MipsCode> newmips = new ArrayList<>();
+            for (int i = 0; i < mipsCodes.size(); i++) {
+                Calculate calculate1 = judgeWhileIMore(i);
+                if (calculate1 != null) {
+                    newmips.add(calculate1);
+                    i += 2;
+                    continue;
+                }
+                MipsCode assign1 = judgeAssign(i);
+                if (assign1 != null) {
+                    newmips.add(assign1);
+                    i += 1;
+                    continue;
+                }
+                newmips.add(mipsCodes.get(i));
             }
-            newmips.add(mipsCodes.get(i));
+            mipsCodes = newmips;
+            if (lastmips.size() == mipsCodes.size()) break;
         }
-        mipsCodes = newmips;
     }
 
     /**
@@ -62,7 +72,29 @@ public class MIPSOptimizer {
         return null;
     }
 
+    /**
+     * move reg1 reg2
+     * move reg3 reg4
+     */
+    MipsCode judgeAssign(int i) {
+        if (i > mipsCodes.size() - 2) return null;
+        MipsCode first = mipsCodes.get(i);
+        MipsCode second = mipsCodes.get(i + 1);
+        if (first instanceof Assign && second instanceof Assign) {
+            Namespace reg1 = ((Assign) first).getSym1();
+            Namespace reg2 = ((Assign) first).getSym2();
+            Namespace reg3 = ((Assign) second).getSym1();
+            Namespace reg4 = ((Assign) second).getSym2();
+            if (reg1.equals(reg4) && !useReg(reg1, i + 2)) {
+                return new Assign(reg3, reg2);
+            }
+        }
+        return null;
+    }
+
+
     boolean useReg(Namespace reg, int pos) {
+        if (reg.isGlobal()) return true;
         for (int i = pos; i < mipsCodes.size(); i++) {
             MipsCode mipsCode = mipsCodes.get(i);
             if (mipsCode instanceof Assign) {

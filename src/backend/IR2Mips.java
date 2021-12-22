@@ -923,7 +923,7 @@ public class IR2Mips {
         }
         if (names[1].equals("func")) {
             if (names[names.length - 1].equals("end")) {
-                if (!(curfunccodes.get(curfunccodes.size() - 1) instanceof BrJump)) {
+                if ((curfunccodes.size() > 0 && !(curfunccodes.get(curfunccodes.size() - 1) instanceof BrJump)) || !(funcmipscodes.size() > 0 && funcmipscodes.get(funcmipscodes.size() - 1) instanceof BrJump)) {
                     curfunccodes.add(new BrJump(new Namespace(31, 0), "jr"));
                 }
                 blockstack.remove(curLevel--);
@@ -1001,10 +1001,12 @@ public class IR2Mips {
         return mipsout;
     }
 
+    ArrayList<MipsCode> funcmipscodes = new ArrayList<>();
+
     void transFunc() {
         resetTmpRegpool();
         resetGlobalRegpool();
-        curfunccodes = new ArrayList<>();
+        funcmipscodes = new ArrayList<>();
         FuncBlock funcBlock = funcBlocks.get(curFunc);
         ArrayList<BasicBlock> basicBlocks = funcBlock.getBasicBlocks();
         globalreg2sym = funcBlock.getGlobalReg2sym();
@@ -1014,11 +1016,12 @@ public class IR2Mips {
         for (int i = 0; i < basicBlocks.size(); i++) {
             transbasicblock(basicBlocks.get(i));
         }
-        funcBlocks.get(curFunc).setFuncmipscodes(curfunccodes);
+        funcBlocks.get(curFunc).setFuncmipscodes(funcmipscodes);
     }
 
     private void transbasicblock(BasicBlock basicBlock) {
         ArrayList<IRCode> ircodes = basicBlock.getIrCodes();
+        curfunccodes = new ArrayList<>();
         for (int i = 0; i < ircodes.size(); i++) {
             //System.out.println(i);
             if (ircodes.get(i) instanceof Label) scanLabel((Label) ircodes.get(i));
@@ -1042,6 +1045,10 @@ public class IR2Mips {
                     tmpreg2sym.remove(reg);
                     regpool.put(reg, false);
                 }
+                if (compareTmp(tmpreg2sym.get(reg), killls)) {
+                    tmpreg2sym.remove(reg);
+                    regpool.put(reg, false);
+                }
                 if (!tmpreg2sym.containsKey(reg)) {
                     regpool.put(reg, false);
                 }
@@ -1052,5 +1059,17 @@ public class IR2Mips {
                 }
             }
         }
+        MIPSOptimizer mipsOptimizer = new MIPSOptimizer(curfunccodes);
+        curfunccodes = mipsOptimizer.getMipsCodes();
+        funcmipscodes.addAll(curfunccodes);
+    }
+
+    boolean compareTmp(Sym sym, HashSet<Sym> syms) {
+        if (sym == null) return true;
+        for (Sym s : syms) {
+            if (s == null) continue;
+            if (s.toString().equals(sym.toString())) return true;
+        }
+        return false;
     }
 }

@@ -437,14 +437,100 @@ block_main_end:
 * **如果t为负数**
   * 将商取反即可，用$0$减去上一步得到的商
 
-##### 对于n是2的次幂的情况
-
-设$|n|=2^k$
-
-* 如果$t$是正数，前端直接移k位即可完成
-* $t$是负数，后端先将$m$取反，再移正数位数即可
+实际操作时，主要参考论文 `Division by Invariant Integers using Multiplication` 的图`5.1`
 
 #### 窥孔优化
+
+此部分直接针对后端基本块内进行优化，主要是对寄存器的使用进行优化，围绕相邻若干指令组合起来有冗余的情况。
+
+首先实现一个函数，分析某个局部寄存器在之后的指令里有无被使用
+
+具体代码如下
+
+```java
+boolean useReg(Namespace reg, int pos) {
+    for (int i = pos; i < mipsCodes.size(); i++) {
+        MipsCode mipsCode = mipsCodes.get(i);
+        if (mipsCode instanceof Assign) {
+            if (reg.equals(((Assign) mipsCode).getSym2())) {
+                return true;
+            }
+            if (reg.equals(((Assign) mipsCode).getSym1())) {
+                return false;
+            }
+        }
+        if (mipsCode instanceof BrJump) {
+            if (reg.equals(((BrJump) mipsCode).getReg1()) 
+                || reg.equals(((BrJump) mipsCode).getReg2())) return true;
+        }
+        if (mipsCode instanceof Calculate) {
+            if (reg.equals(((Calculate) mipsCode).getReg2()) 
+                || reg.equals(((Calculate) mipsCode).getReg3()))
+                return true;
+            if (reg.equals(((Calculate) mipsCode).getReg1())) return false;
+        }
+        if (mipsCode instanceof LoadStore) {
+            if ((!((LoadStore) mipsCode).isload()) &&
+                (reg.equals(((LoadStore) mipsCode).getReg2()) 
+                 || reg.equals(((LoadStore) mipsCode).getReg1())))
+                return true;
+            if (((LoadStore) mipsCode).isload() &&
+                (reg.equals(((LoadStore) mipsCode).getReg2())))
+                return true;
+            if (((LoadStore) mipsCode).isload() &&
+                (reg.equals(((LoadStore) mipsCode).getReg1())))
+                return false;
+        }
+        if (mipsCode instanceof MTF) {
+            if (((MTF) mipsCode).getTransType() == 1 
+                && reg.equals(((MTF) mipsCode).getReg())) return false;
+            if (((MTF) mipsCode).getTransType() == 0 
+                && reg.equals(((MTF) mipsCode).getReg())) return true;
+        }
+        if (mipsCode instanceof StackManage) {
+            if (((StackManage) mipsCode).getType() == 0 
+                && reg.equals(((StackManage) mipsCode).getReg()))
+                return true;
+            if (((StackManage) mipsCode).getType() == 1 
+                && reg.equals(((StackManage) mipsCode).getReg()))
+                return false;
+        }
+    }
+    return false;
+}
+```
+
+基本思想是分析后端寄存器的定义使用链，分析从当前某条定义语句开始，下一条使用语句与他之间是否有定义语句，如果有就可以将这条定义删掉。
+
+##### 循环变量优化
+
+出现 `i=i+1` 时，即形如如下格式
+
+```
+move reg1 reg2
+addi reg1 reg1 value
+move reg2 reg1
+==================
+addi reg2 reg2 0x1
+```
+
+且上述寄存器中，`reg2` 必须为全局寄存器，且 `reg1` 必须为局部寄存器，且 `reg1` 要符合 `useReg(reg)==false`
+
+##### 赋值语句
+
+形如以下格式
+
+    move reg1 reg2
+    move reg3 reg4
+    ================
+    move reg3 reg2
+    
+    li reg1 value
+    move reg3 reg4
+    ================
+    li reg3 value
+
+如果`reg1==reg4`且`reg1`是局部寄存器而且`useReg(reg1)==false`
 
 ### 全局优化
 
@@ -520,7 +606,7 @@ while (true) {
 
 #### 图着色与全局寄存器分配
 
-由于我没有实现对于函数之间的依赖分析，因此只能做函数内局部变量的全局变量寄存器分配。具体方式为对每一个基本块入口处的活跃变量即`in`集合，这些变量之间存在相互冲突，同时记录每个变量的引用次数。以此建立起了冲突图。之后利用`Chaitin-Briggs算法`进行图着色，即每次寻找一个小于全局寄存器数目的度的变量进行分配，将其移除出图并着色，再对其他变量进行着色，如果某一轮找不到符合条件的，就寻找一个被引用次数最少的变量直接移除出图，不分配寄存器。
+由于我没有实现对于函数之间的依赖分析，因此只能做函数内局部变量的全局变量寄存器分配。具体方式为对每一个基本块入口处的活跃变量即`in`集合，这些变量之间存在相互冲突，同时记录每个变量的引用次数。以此建立起了冲突图。之后利用`Chaitin-Briggs算法`进行图着色，即每次寻找一个小于全局寄存器数目的度的变量进行分配，将其移除出图并着色，再对其他变量进行着色，如果某一轮找不到符合条件的，就寻找一个被引用次数最少的变量直接移除出图，不分配寄存器。同时，由于数组变量分配寄存器容易失误，本次编译器我也没关注数组变量的寄存器分配。
 
 例如对于以下代码
 
@@ -555,115 +641,63 @@ int getDif3N(int min,int max){
 [%cnt, %i, %j, %k]
 ```
 
-最后应该给`%cnt %i %j %k`四个变量进行全局寄存器分配。
+最后应该给 `%cnt %i %j %k` 四个变量进行全局寄存器分配。具体来说，对于函数参数，需要在函数开头先将参数值`load`到全局寄存器中，对于一般的变量，在定义的时候将这个变量和寄存器对应关系存到符号表中。之后使用变量时，查表如果发现有寄存器对应关系，就直接使用寄存器的值。
+
+真正在使用时，每次新进入一个函数都需要清空之前的全局寄存器分配表，同时利用前端得到的信息进行新的寄存器分配。
 
 #### 循环无用代码删除
 
 循环代码在中间代码的体现为某个基本块的后继基本块的编号比自己小。对满足这样条件的基本块区间进行分析，如果这一段内不存在对于其他基本块活跃的变量，且没有输入输出语句，函数调用，没有对全局变量的修改，则认为这个循环块无用，可以删除。这个对以下代码效果显著。
 
-源代码
+##### 源代码
 
 ```asm
-int d = 4;
-
-int hhh(int i){
-    int c = i * i;
-    if (i == 1) {
-        return 1;
-    }
-    if (i == 2) {
-        return 2;
-    }
-    c = c * c % 10;
-    return hhh(i - 1) + hhh(i - 2);
-}
-
 int main () {
-    int i = 2,j = 5;
-    i = getint();
-    j = getint();
-    j = 7*5923/56*56 - hhh(hhh(3)) + (1+2-(89/2*36-53) /1*6-2*(45*56/85-56+35*56/4-9));
-    int k = -+-5;
     int n = 10;
-    while (n < k*k*k*k*k*k) {
-        d = d * d % 10000;
+    while (n < 123) {
         n = n + 1;
     }
-    printf("%d, %d, %d\n", i, j, k);
+    printf("%d, %d, %d\n", 1, 2, 3);
     return 0;
 }
 ```
 
-优化后代码
+##### 优化后代码
 
 ```asm
-var int @d = 4
-int hhh()
-para int %i
-block_func_hhh_begin:
-t0 = %i
-t0 = t0 * %i
-var int %c = t0
-cond_if_1_0:
-cmp %i, 1
-bne if_1_end
-if_1_begin:
-block_1_begin:
-ret 1
-block_1_end:
-goto if_1_end_1
-if_1_end:
-if_1_end_1:
-cond_if_2_0:
-cmp %i, 2
-bne if_2_end
-if_2_begin:
-block_2_begin:
-ret 2
-block_2_end:
-goto if_2_end_2
-if_2_end:
-if_2_end_2:
-t6 = %i
-t6 = t6 - 1
-push t6
-call hhh
-t5 = RET
-t8 = t5
-t10 = %i
-t10 = t10 - 2
-push t10
-call hhh
-t9 = RET
-t8 = t8 + t9
-ret t8
-block_func_hhh_end:
-decline_init_end:
-block_main_begin:
-var int %i = 2
-var int %j = 5
-%i = getint()
-%j = getint()
-push 3
-call hhh
-t14 = RET
-push t14
-call hhh
-t13 = RET
-t15 = 41440 - t13
-t16 = t15
-t16 = t16 + -10091
-%j = t16
-var int %k = 5
-var int %n = 10
+.data
+str1: .asciiz ", "
+str2: .asciiz ", "
+str3: .asciiz "\n"
+.text
+li $3 0xa
+sw $3 0x10040000($0)
 cond_while_1_0:
 while_1_end:
-printf "%d, %d, %d\n" %i-%j-%k
-mainfunc_ret_0:
-block_main_end:
+li $4 0x1
+li $2 0x1
+syscall
+la $4 str1
+li $2 0x4
+syscall
+li $4 0x2
+li $2 0x1
+syscall
+la $4 str2
+li $2 0x4
+syscall
+li $4 0x3
+li $2 0x1
+syscall
+la $4 str3
+li $2 0x4
+syscall
+text_end_0: 
+li $2 0xa
+syscall
 ```
 
-可以看到无用的循环块被删除了
+可以看到无用的循环块被删除了，仅剩下了输出语句
 
 
 

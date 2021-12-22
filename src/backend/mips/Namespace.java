@@ -69,4 +69,8 @@ public class Namespace {
     public int hashCode() {
         return Objects.hash(type, reg, value, label);
     }
+
+    public boolean isGlobal() {
+        return reg >= 16 && reg <= 23;
+    }
 }
