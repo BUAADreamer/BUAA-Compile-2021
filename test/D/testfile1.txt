@@ -1,0 +1,13 @@
+int e3[4],f3[3],ii3[2][2] = {{9,8},{7,6}};
+int funcAA(int x[], int y[]) {
+	int tempp;
+	tempp = x[0] + y[0];
+	return tempp;
+}
+int main () {
+    int	j3[2][3] = {{ii3[0][0],2,ii3[0][1]},{4,ii3[1][0],ii3[1][1]}};
+    int temp3;
+    temp3 = funcAA(ii3[0], j3[1]);
+    printf("%d\n",temp3);
+    return 0;
+}

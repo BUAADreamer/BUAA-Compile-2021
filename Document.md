@@ -2,7 +2,7 @@
 
 # 阶段一 前端基础设计
 
-## 总体架构
+## 第一阶段架构
 
 ![](pic/Compiler1.png)
 
@@ -11,7 +11,7 @@
 四个简单错误，输出抽象语法树和一个错误节点的列表，作为`Visitor`的输入，`Visitor`遍历语法树建立符号表并处理其他的语义层面和符号相关错误，输出完整的错误列表和符号表。整个过程中由各个类完成输出字符串拼接，由`IOtool`
 类输出字符串到文件。
 
-`Frontend`类主函数代码如下
+第一阶段 `Frontend` 类主函数代码如下
 
 ```Java
 public Frontend()throws IOException{
@@ -52,8 +52,6 @@ public Lexer(String sourceCode){
 }
 ```
 
-<img src="pic/Lexer_Word.png" style="zoom: 33%;" />
-
 ## 语法分析
 
 建立`Parser`类完成这部分内容，使用递归下降的方式对词法分析得到的`Word`类列表进行语法分析，利用一个`pos`表示当前的符号指针。建立了一个`ASTNode`类保存了每个语法树节点的`type`，`name`,`Word`
@@ -72,8 +70,6 @@ public Parser(ArrayList<Word> words){
 }
 ```
 
-<img src="pic/Parser_ASTNode.png" style="zoom: 33%;" />
-
 ## 错误处理
 
 建立了`Visitor`类，`ExcNode`类，`SymbolTable`类三个类实现错误处理和符号表管理。
@@ -85,7 +81,7 @@ public Parser(ArrayList<Word> words){
 
 `Visitor`类对`Parser`生成的语法树进行**后序遍历**
 ，维护一个符号表栈，每次进入一个节点，先对这个节点可能出现的错误进行处理，包括符号重定义，未定义以及各种语义错误。对于每个标识符，都会先查符号表，从当前层逐层向上查找，将查到的符号和当前符号进行比对，根据情况决定是否加入符号表和错误处理。如果当前节点是`block`
-节点，则将这个`block`生成的一个符号放入符号表栈中。之后进行子节点遍历，遍历完成结束再将这个`block`节点出栈。
+节点，则将这个`block`生成的一个符号放入符号表栈中。之后进行子节点遍历，遍历完成结束再将这个`block`节点出栈。同时，建立了一个栈`stackstmtwhile`来表示只有一句话的`while`的开始，当遇到`continue`和`break`的时候如果发现`block`节点中没有`while`但这个栈不为空，则也是正确的。`stackWhile`表示某个块进入之前是否有`while`。
 
 `Visitor`主方法如下
 
@@ -101,10 +97,14 @@ public Visitor(ASTNode ast,ArrayList<ExcNode> excNodes){
 
 以下是三个类的类图
 
-<img src="pic/ExcNode_Visitor_SymbolTable.png" style="zoom: 33%;" />
-
 参考网站:
 https://gcc.godbolt.org/
+
+### 第一阶段符号表设计
+
+这一阶段为了方便起见，单独使用一个`SymbolTable`类存储所有的符号信息，每个`SymbolTable`对象可以是变量，函数，块三种类型，包含名字，层级，类型，函数有虚参数表，块有层级，数组还会有相应的初始化列表，长度信息等等。
+
+错误处理过程中，使用一个块符号的栈来模拟`display`区，即查表时从栈顶向栈底依次查询。同时也建立了循环符号的栈
 
 # 阶段二 代码生成
 
