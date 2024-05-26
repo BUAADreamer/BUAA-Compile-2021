@@ -6,3 +6,5 @@
 
 设计文档参见`document/Document.pdf`
 
+推荐使用IDEA进行运行和测试
+
